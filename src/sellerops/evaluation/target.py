@@ -20,7 +20,8 @@ from .telemetry import capture_attempts
 
 def make_target(*, action_model="sellerops-sft", router_model="qwen-base",
                 max_model_calls=8, max_new_tokens=256, max_retries=MAX_AGENT_RETRIES,
-                temperature=0.0, seed=42, trace_graph=False):
+                temperature=0.0, seed=42, trace_graph=False, router_mode="llm",
+                strict_router_schema=False):
     """Configure the agent once; each call creates a fresh service and graph."""
     for model in (action_model, router_model):
         if model not in MODEL_CONFIGS:
@@ -28,6 +29,10 @@ def make_target(*, action_model="sellerops-sft", router_model="qwen-base",
     for value in (max_model_calls, max_new_tokens):
         if type(value) is not int or value < 1:
             raise ValueError("Model budgets must be positive integers")
+    if router_mode not in ("llm", "rule"):
+        raise ValueError("router_mode must be llm or rule")
+    if type(strict_router_schema) is not bool:
+        raise ValueError("strict_router_schema must be a boolean")
     if type(max_retries) is not int or max_retries < 0:
         raise ValueError("max_retries must be a non-negative integer")
     if type(seed) is not int or not 0 <= seed < 2**32:
@@ -38,6 +43,7 @@ def make_target(*, action_model="sellerops-sft", router_model="qwen-base",
         "action_model_name": action_model, "router_model_name": router_model,
         "max_model_calls": max_model_calls, "max_new_tokens": max_new_tokens,
         "max_retries": max_retries, "temperature": temperature,
+        "router_mode": router_mode, "strict_router_schema": strict_router_schema,
     }, "recursion_limit": 4 * max_model_calls + 10}
     trials = Counter()
 

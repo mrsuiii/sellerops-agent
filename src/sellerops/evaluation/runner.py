@@ -47,6 +47,8 @@ def summarize(records: list[dict], *, repetitions=1, pass_k=1, task_ids=None, in
         "latency_p50_seconds": _percentile([o["latency_seconds"] for o in outputs], .5),
         "latency_p95_seconds": _percentile([o["latency_seconds"] for o in outputs], .95),
         "answer_groundedness": "not_evaluated",
+        "router_act_text_dropped": sum(a.get("normalized") == "act_text_dropped"
+                                       for o in outputs for a in o["attempts"]),
     }
     summary.update(pass_metrics(
         [(r["task_id"], None if r["evaluation_error"] else r["scores"].get("structured_outcome_pass"))
@@ -95,7 +97,7 @@ def _export_row(row) -> dict:
 def run_evaluation(*, cloud=False, limit=None, action_model="sellerops-sft",
                    router_model="qwen-base", max_model_calls=8, max_new_tokens=256,
                    max_retries=MAX_AGENT_RETRIES, repetitions=1, pass_k=1,
-                   temperature=0.0, seed=42,
+                   temperature=0.0, seed=42, router_mode="llm", strict_router_schema=False,
                    judge="none", judge_model=DEFAULT_MODEL,
                    output_root: Path | None = None) -> dict:
     """Run dev episodes sequentially; cloud publishing is an explicit choice."""
@@ -108,7 +110,8 @@ def run_evaluation(*, cloud=False, limit=None, action_model="sellerops-sft",
     target = make_target(action_model=action_model, router_model=router_model,
                          max_model_calls=max_model_calls, max_new_tokens=max_new_tokens,
                          max_retries=max_retries, temperature=temperature, seed=seed,
-                         trace_graph=cloud)
+                         trace_graph=cloud, router_mode=router_mode,
+                         strict_router_schema=strict_router_schema)
     if cloud and not (os.environ.get("LANGSMITH_API_KEY") or os.environ.get("LANGCHAIN_API_KEY")):
         raise ValueError("Set LANGSMITH_API_KEY in your terminal for --cloud, or use --offline")
     examples = as_examples(load_dev_records())
@@ -127,8 +130,11 @@ def run_evaluation(*, cloud=False, limit=None, action_model="sellerops-sft",
         task_ids = [e.inputs["task_id"] for e in selected]
         destination.mkdir(parents=True, exist_ok=False)
         metadata = {
-            "action_model": action_model, "router_model": router_model,
-            "model_sources": {name: MODEL_CONFIGS[name] for name in {action_model, router_model}},
+            "action_model": action_model,
+            "router_model": router_model if router_mode == "llm" else None,
+            "router_mode": router_mode, "strict_router_schema": strict_router_schema,
+            "model_sources": {name: MODEL_CONFIGS[name] for name in
+                              ({action_model, router_model} if router_mode == "llm" else {action_model})},
             "source_sha256": selected[0].metadata["source_sha256"],
             **{key: value for key, value in selected[0].metadata.items()
                if key.startswith("answer_key_") or key in {"task_source_sha256", "environment_sha256"}},

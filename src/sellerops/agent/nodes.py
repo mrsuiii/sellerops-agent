@@ -1,6 +1,6 @@
 """Model node for the SellerOps structured-action agent."""
 
-from functools import lru_cache
+from functools import lru_cache, partial
 from contextlib import nullcontext
 import json
 import math
@@ -19,7 +19,7 @@ from sellerops.agent.model_adapter import ModelAdapter
 from sellerops.agent.state import AgentState
 from sellerops.dataset import SYSTEM_PROMPT
 from sellerops.evaluation.telemetry import (
-    llm_trace_inputs, llm_trace_outputs, model_attempt, record_generation,
+    llm_trace_inputs, llm_trace_outputs, model_attempt, note_attempt, record_generation,
 )
 from sellerops.schemas import MAX_AGENT_RETRIES, SchemaError, canonical_json
 from sellerops.services.episode_service.episode_service import EpisodeService
@@ -117,22 +117,45 @@ def _model_step(state, config, messages, parser, node):
                   "failure_reason": reason}
 
 
+ROUTER_MODES = ("llm", "rule")
+
+
 def router_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
-    """Let the general model delegate, reply, or ask; keep routing JSON private."""
+    """Delegate, reply, or ask; keep routing JSON private.
+
+    configurable.router_mode selects the policy:
+    - "llm" (default): the general model decides, as before.
+    - "rule": a deterministic policy with no model call. Every user turn and
+      tool observation goes to SFT; SFT final/ask_user is shown verbatim.
+      This isolates the SFT action model from router formatting failures.
+    """
+    options = dict(config.get("configurable", {}))
+    mode = options.get("router_mode", "llm")
+    if mode not in ROUTER_MODES:
+        raise ValueError(f"router_mode must be one of {ROUTER_MODES}")
+    if mode == "rule":
+        return _route_update(*rule_route(state["messages"]), {
+            "pending_retry": None, "retry_feedback": None, "failure_reason": None, "error": None,
+        })
     if _budget_exhausted(state, config):
         return _stop_for_budget()
-    options = dict(config.get("configurable", {}))
     options["model_name"] = options.get("router_model_name", "qwen-base")
+    strict = options.get("strict_router_schema", False)
+    if type(strict) is not bool:
+        raise ValueError("strict_router_schema must be a boolean")
     # A plain serialized transcript also supports SFT final/ask_user messages.
     # We do not pretend its internal JSON decisions are user-facing dialogue.
     transcript = [{"role": m.type, "content": m.content} for m in state["messages"]]
     parsed, update = _model_step(state, {**config, "configurable": options}, [
             {"role": "system", "content": ROUTER_PROMPT},
             {"role": "user", "content": canonical_json(transcript)},
-        ], _parse_router_output, "router")
+        ], partial(_parse_router_output, strict=strict), "router")
     if parsed is None:
         return update
-    route, response = parsed
+    return _route_update(*parsed, update)
+
+
+def _route_update(route: str, response: str, update: dict[str, Any]) -> dict[str, Any]:
     return {
         **update,
         "route": route,
@@ -143,7 +166,28 @@ def router_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
     }
 
 
-def _parse_router_output(text: str) -> tuple[str, str]:
+def rule_route(messages) -> tuple[str, str]:
+    """Deterministic routing: present an SFT terminal action, otherwise act.
+
+    The latest message decides. A validated SFT `final` becomes a reply with its
+    own message; `ask_user` becomes its question. A user turn, a tool result, or
+    anything else is delegated to SFT. Free chat (greetings) is therefore also
+    delegated; SFT is trained to answer with one of its three action types.
+    """
+    last = messages[-1] if messages else None
+    if isinstance(last, AIMessage) and not last.tool_calls:
+        try:
+            action = json.loads(last.content)
+        except (TypeError, json.JSONDecodeError):
+            action = None
+        if isinstance(action, dict) and action.get("type") == "final":
+            return "reply", action["message"]
+        if isinstance(action, dict) and action.get("type") == "ask_user":
+            return "ask", action["question"]
+    return "act", ""
+
+
+def _parse_router_output(text: str, *, strict: bool = False) -> tuple[str, str]:
     try:
         decision = json.loads(text)
     except json.JSONDecodeError as error:
@@ -153,6 +197,12 @@ def _parse_router_output(text: str) -> tuple[str, str]:
     route, response = decision["decision"], decision["text"]
     if route not in ("act", "reply", "ask") or not isinstance(response, str):
         raise SchemaError("Invalid router decision/text")
+    if route == "act" and response != "" and not strict:
+        # Small routers often explain the delegation. The text is never shown or
+        # passed to SFT, so the decision is kept and the text dropped. This was
+        # the failure on all 30 dev tasks in the 2026-10-06 evaluation.
+        note_attempt(normalized="act_text_dropped")
+        return "act", ""
     if (route == "act" and response != "") or (route != "act" and not response.strip()):
         raise SchemaError("act requires empty text; reply/ask require non-empty text")
     return route, response

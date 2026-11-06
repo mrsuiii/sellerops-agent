@@ -23,6 +23,10 @@ def main():
     parser.add_argument("--limit", type=int, help="Evaluate the first N dev tasks (cloud dataset contains all dev tasks)")
     parser.add_argument("--action-model", choices=sorted(MODEL_CONFIGS), default="sellerops-sft")
     parser.add_argument("--router-model", choices=sorted(MODEL_CONFIGS), default="qwen-base")
+    parser.add_argument("--router-mode", choices=["llm", "rule"], default="llm",
+                        help="llm = router model decides; rule = deterministic router, no model call")
+    parser.add_argument("--strict-router", action="store_true",
+                        help="Reject act with non-empty text (pre-2026-11 behaviour) instead of dropping the text")
     parser.add_argument("--max-model-calls", type=int, default=8)
     parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--max-retries", type=int, default=MAX_AGENT_RETRIES,
@@ -42,6 +46,7 @@ def main():
                                 max_new_tokens=args.max_new_tokens, max_retries=args.max_retries,
                                 repetitions=args.repetitions, pass_k=args.pass_k,
                                 temperature=args.temperature, seed=args.seed, output_root=args.output_root,
+                                router_mode=args.router_mode, strict_router_schema=args.strict_router,
                                 judge=args.judge, judge_model=args.judge_model)
     except ValueError as error:
         parser.error(str(error))
