@@ -1,0 +1,37 @@
+{
+  "label": "sft-dev",
+  "record_count": 78,
+  "metrics": {
+    "json_valid": {
+      "rate": 1.0,
+      "correct": 78,
+      "total": 78
+    },
+    "schema_valid": {
+      "rate": 1.0,
+      "correct": 78,
+      "total": 78
+    },
+    "action_type_correct": {
+      "rate": 0.9871794871794872,
+      "correct": 77,
+      "total": 78
+    },
+    "tool_choice_correct": {
+      "rate": 1.0,
+      "correct": 48,
+      "total": 48
+    },
+    "arguments_exact": {
+      "rate": 0.7916666666666666,
+      "correct": 38,
+      "total": 48
+    },
+    "exact_action_match": {
+      "rate": 0.7051282051282052,
+      "correct": 55,
+      "total": 78
+    }
+  },
+  "seconds": 158.56302516199958
+}

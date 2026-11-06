@@ -1,0 +1,32 @@
+{
+  "action_model": "sellerops-sft",
+  "router_model": "qwen-base",
+  "model_sources": {
+    "qwen-base": {
+      "local": false,
+      "model_name": "Qwen/Qwen2.5-0.5B-Instruct"
+    },
+    "sellerops-sft": {
+      "local": true,
+      "model_path": "/Users/emeryzwageri/llm-post-training-lab/projects/sellerops-agent/results/sft/20260917-234821-full-sft/final-model",
+      "tokenizer_path": "/Users/emeryzwageri/llm-post-training-lab/projects/sellerops-agent/results/sft/20260917-234821-full-sft/final-model"
+    }
+  },
+  "source_sha256": "63fc340abe06b839bb7e2ade1d2f1834f076ea7b3dcfa215b32b65f2b83fece3",
+  "dataset_version": "sellerops-sft-v0.2",
+  "environment_version": "sellerops-sim-v0.1",
+  "max_model_calls": 4,
+  "max_new_tokens": 128,
+  "max_retries": 2,
+  "repetitions": 2,
+  "pass_k": 2,
+  "temperature": 0.7,
+  "generation_base_seed": 42,
+  "split": "dev",
+  "selected_task_ids": [
+    "dev-search-dev-brand-id-000"
+  ],
+  "cloud": false,
+  "do_sample": true,
+  "max_concurrency": 0
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "max_discount_percent": 10,
+    "product_id": "P1001",
+    "source": "discount-policy-v1#P1001"
+  },
+  {
+    "max_discount_percent": 5,
+    "product_id": "P1002",
+    "source": "discount-policy-v1#P1002"
+  },
+  {
+    "max_discount_percent": 15,
+    "product_id": "P1003",
+    "source": "discount-policy-v1#P1003"
+  },
+  {
+    "max_discount_percent": 8,
+    "product_id": "P1004",
+    "source": "discount-policy-v1#P1004"
+  },
+  {
+    "max_discount_percent": 12,
+    "product_id": "P1005",
+    "source": "discount-policy-v1#P1005"
+  },
+  {
+    "max_discount_percent": 10,
+    "product_id": "P1006",
+    "source": "discount-policy-v1#P1006"
+  },
+  {
+    "max_discount_percent": 0,
+    "product_id": "P1007",
+    "source": "discount-policy-v1#P1007"
+  },
+  {
+    "max_discount_percent": 10,
+    "product_id": "P1008",
+    "source": "discount-policy-v1#P1008"
+  },
+  {
+    "max_discount_percent": 7,
+    "product_id": "P1009",
+    "source": "discount-policy-v1#P1009"
+  },
+  {
+    "max_discount_percent": 12,
+    "product_id": "P1010",
+    "source": "discount-policy-v1#P1010"
+  },
+  {
+    "max_discount_percent": 5,
+    "product_id": "P1011",
+    "source": "discount-policy-v1#P1011"
+  },
+  {
+    "max_discount_percent": 10,
+    "product_id": "P1012",
+    "source": "discount-policy-v1#P1012"
+  }
+]

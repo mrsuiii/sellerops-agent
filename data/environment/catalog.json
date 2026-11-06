@@ -1,0 +1,158 @@
+[
+  {
+    "brand": "Orbit",
+    "category": "accessories",
+    "color": "black",
+    "name": "Orbit Wireless Mouse",
+    "price_idr": 249000,
+    "product_id": "P1001",
+    "tags": [
+      "wireless",
+      "mouse",
+      "ergonomic"
+    ]
+  },
+  {
+    "brand": "Kepler",
+    "category": "accessories",
+    "color": "black",
+    "name": "Kepler Mechanical Keyboard",
+    "price_idr": 799000,
+    "product_id": "P1002",
+    "tags": [
+      "mechanical",
+      "keyboard",
+      "rgb"
+    ]
+  },
+  {
+    "brand": "Atlas",
+    "category": "accessories",
+    "color": "silver",
+    "name": "Atlas Laptop Stand",
+    "price_idr": 349000,
+    "product_id": "P1003",
+    "tags": [
+      "laptop",
+      "stand",
+      "ergonomic"
+    ]
+  },
+  {
+    "brand": "Nova",
+    "category": "accessories",
+    "color": "gray",
+    "name": "Nova USB-C Hub",
+    "price_idr": 459000,
+    "product_id": "P1004",
+    "tags": [
+      "usb-c",
+      "hub",
+      "adapter"
+    ]
+  },
+  {
+    "brand": "Echo",
+    "category": "audio",
+    "color": "white",
+    "name": "Echo Wireless Earbuds",
+    "price_idr": 699000,
+    "product_id": "P1005",
+    "tags": [
+      "wireless",
+      "earbuds",
+      "bluetooth"
+    ]
+  },
+  {
+    "brand": "Luma",
+    "category": "home-office",
+    "color": "white",
+    "name": "Luma Desk Lamp",
+    "price_idr": 299000,
+    "product_id": "P1006",
+    "tags": [
+      "lamp",
+      "led",
+      "desk"
+    ]
+  },
+  {
+    "brand": "Terra",
+    "category": "lifestyle",
+    "color": "green",
+    "name": "Terra Water Bottle",
+    "price_idr": 179000,
+    "product_id": "P1007",
+    "tags": [
+      "bottle",
+      "water",
+      "reusable"
+    ]
+  },
+  {
+    "brand": "Comet",
+    "category": "bags",
+    "color": "navy",
+    "name": "Comet Everyday Backpack",
+    "price_idr": 499000,
+    "product_id": "P1008",
+    "tags": [
+      "backpack",
+      "travel",
+      "daily"
+    ]
+  },
+  {
+    "brand": "Sprint",
+    "category": "footwear",
+    "color": "blue",
+    "name": "Sprint Running Shoes",
+    "price_idr": 899000,
+    "product_id": "P1009",
+    "tags": [
+      "running",
+      "shoes",
+      "sport"
+    ]
+  },
+  {
+    "brand": "Brew",
+    "category": "kitchen",
+    "color": "black",
+    "name": "Brew Coffee Grinder",
+    "price_idr": 549000,
+    "product_id": "P1010",
+    "tags": [
+      "coffee",
+      "grinder",
+      "kitchen"
+    ]
+  },
+  {
+    "brand": "Shield",
+    "category": "mobile",
+    "color": "clear",
+    "name": "Shield Phone Case",
+    "price_idr": 129000,
+    "product_id": "P1011",
+    "tags": [
+      "phone",
+      "case",
+      "protective"
+    ]
+  },
+  {
+    "brand": "Volt",
+    "category": "mobile",
+    "color": "black",
+    "name": "Volt Power Bank",
+    "price_idr": 399000,
+    "product_id": "P1012",
+    "tags": [
+      "power",
+      "bank",
+      "charger"
+    ]
+  }
+]

@@ -1,0 +1,5 @@
+# Run the notebook audit/setup first; preserve Colab's installed CUDA PyTorch.
+# The notebook passes a constraint pinning torch to its existing version.
+transformers==5.14.1
+datasets==5.0.0
+accelerate==1.14.0

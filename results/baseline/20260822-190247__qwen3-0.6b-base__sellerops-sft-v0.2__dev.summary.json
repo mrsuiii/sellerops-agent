@@ -1,0 +1,49 @@
+{
+  "dataset_version": "sellerops-sft-v0.2",
+  "device": "mps",
+  "dtype": "torch.float16",
+  "evaluation_seconds": 45.983970959001454,
+  "generation": {
+    "batch_size": 4,
+    "do_sample": false,
+    "enable_thinking": false,
+    "max_new_tokens": 256
+  },
+  "metrics": {
+    "action_type_correct": {
+      "correct": 0,
+      "rate": 0.0,
+      "total": 4
+    },
+    "arguments_exact": {
+      "correct": 0,
+      "rate": 0.0,
+      "total": 2
+    },
+    "exact_action_match": {
+      "correct": 0,
+      "rate": 0.0,
+      "total": 4
+    },
+    "json_valid": {
+      "correct": 0,
+      "rate": 0.0,
+      "total": 4
+    },
+    "schema_valid": {
+      "correct": 0,
+      "rate": 0.0,
+      "total": 4
+    },
+    "tool_choice_correct": {
+      "correct": 0,
+      "rate": 0.0,
+      "total": 2
+    }
+  },
+  "model_id": "Qwen/Qwen3-0.6B-Base",
+  "model_revision": "da87bfb608c14b7cf20ba1ce41287e8de496c0cd",
+  "record_count": 4,
+  "seed": 20260820,
+  "split": "dev"
+}

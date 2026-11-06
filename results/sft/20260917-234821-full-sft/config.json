@@ -1,0 +1,38 @@
+{
+  "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+  "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "seed": 20260906,
+  "max_length": 2048,
+  "max_new_tokens": 256,
+  "learning_rate": 2e-05,
+  "epochs": 2,
+  "microbatch": 1,
+  "accumulation": 8,
+  "full_finetuning": true,
+  "bf16": true,
+  "fp16": false,
+  "dataset_version": "sellerops-sft-v0.2",
+  "data_hashes": {
+    "environment/catalog.json": "b682d8a73998e781057ac7e7b3ef8341da346cb5dd84e7194bbb2bc63393fe61",
+    "environment/inventory.json": "97da072648c2c52773d6f74403ec1e8abc1a571ec4ce4906e9bbb8be9e9ad028",
+    "environment/policies.json": "cea88e41e222bbb459a462838de357334ceaef19a3b7f4d93b8e1cd87d959b5e",
+    "sft/dev.jsonl": "065f2ad4ed4b187b6212f052e56986bac7ce50d868fbc451919ef0208cfacf3c",
+    "sft/train.jsonl": "16ad5f3910d0338617b38c5d844ebe2b4a2653bd778b44ab6436846c2f408886",
+    "tasks/dev.jsonl": "63fc340abe06b839bb7e2ade1d2f1834f076ea7b3dcfa215b32b65f2b83fece3",
+    "tasks/test.jsonl": "e85a7f963a1a14b6e0bb43c052398a29e0475287da4e1f040c5d56f40ab5bdaf",
+    "tasks/train.jsonl": "4ae1d0c5092a358fe9dbfbd3ec3f967dc823654470373c3bc53b8278b85bb34f"
+  },
+  "gpu": "Tesla T4",
+  "cuda": "12.8",
+  "versions": {
+    "torch": "2.11.0+cu128",
+    "transformers": "5.14.1",
+    "datasets": "5.0.0",
+    "accelerate": "1.14.0"
+  },
+  "generation": {
+    "do_sample": false,
+    "batch_size": 1,
+    "enable_thinking": false
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "episodes": 30,
+  "scored_episodes": 30,
+  "evaluation_errors": 0,
+  "passed": 0,
+  "structured_outcome_pass_rate": 0.0,
+  "runtime_failures": 0,
+  "reason_counts": {
+    "missing_structured_outcome": 30
+  },
+  "mean_model_calls": 2,
+  "mean_tool_calls": 0,
+  "mean_retry_count": 1,
+  "latency_p50_seconds": 6.4316341879966785,
+  "latency_p95_seconds": 7.529477039249468,
+  "answer_groundedness": "not_evaluated",
+  "pass@1": 0.0,
+  "router_schema_validity": 0.5,
+  "action_schema_validity": null,
+  "by_family": {
+    "inventory_offer": {
+      "episodes": 10,
+      "passed": 0,
+      "evaluation_errors": 0
+    },
+    "policy_qa": {
+      "episodes": 10,
+      "passed": 0,
+      "evaluation_errors": 0
+    },
+    "product_search": {
+      "episodes": 10,
+      "passed": 0,
+      "evaluation_errors": 0
+    }
+  },
+  "experiment_name": "glossy-distribution-65",
+  "expected_episodes": 30,
+  "repetitions": 1,
+  "pass_k": 1,
+  "complete": true
+}

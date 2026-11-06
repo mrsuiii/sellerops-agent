@@ -1,0 +1,50 @@
+[
+  {
+    "product_id": "P1001",
+    "stock": 7
+  },
+  {
+    "product_id": "P1002",
+    "stock": 0
+  },
+  {
+    "product_id": "P1003",
+    "stock": 3
+  },
+  {
+    "product_id": "P1004",
+    "stock": 12
+  },
+  {
+    "product_id": "P1005",
+    "stock": 4
+  },
+  {
+    "product_id": "P1006",
+    "stock": 8
+  },
+  {
+    "product_id": "P1007",
+    "stock": 0
+  },
+  {
+    "product_id": "P1008",
+    "stock": 5
+  },
+  {
+    "product_id": "P1009",
+    "stock": 6
+  },
+  {
+    "product_id": "P1010",
+    "stock": 2
+  },
+  {
+    "product_id": "P1011",
+    "stock": 15
+  },
+  {
+    "product_id": "P1012",
+    "stock": 9
+  }
+]

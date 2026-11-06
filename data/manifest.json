@@ -1,0 +1,66 @@
+{
+  "created_on": "2026-08-20",
+  "dataset_version": "sellerops-sft-v0.2",
+  "environment_version": "sellerops-sim-v0.1",
+  "file_sha256": {
+    "environment/catalog.json": "b682d8a73998e781057ac7e7b3ef8341da346cb5dd84e7194bbb2bc63393fe61",
+    "environment/inventory.json": "97da072648c2c52773d6f74403ec1e8abc1a571ec4ce4906e9bbb8be9e9ad028",
+    "environment/policies.json": "cea88e41e222bbb459a462838de357334ceaef19a3b7f4d93b8e1cd87d959b5e",
+    "sft/dev.jsonl": "065f2ad4ed4b187b6212f052e56986bac7ce50d868fbc451919ef0208cfacf3c",
+    "sft/train.jsonl": "16ad5f3910d0338617b38c5d844ebe2b4a2653bd778b44ab6436846c2f408886",
+    "tasks/dev.jsonl": "63fc340abe06b839bb7e2ade1d2f1834f076ea7b3dcfa215b32b65f2b83fece3",
+    "tasks/test.jsonl": "e85a7f963a1a14b6e0bb43c052398a29e0475287da4e1f040c5d56f40ab5bdaf",
+    "tasks/train.jsonl": "4ae1d0c5092a358fe9dbfbd3ec3f967dc823654470373c3bc53b8278b85bb34f"
+  },
+  "frozen_test_sha256": "e85a7f963a1a14b6e0bb43c052398a29e0475287da4e1f040c5d56f40ab5bdaf",
+  "generator_version": "sellerops-generator-v0.2",
+  "notes": [
+    "Templates are disjoint across train, dev, and frozen test splits.",
+    "Only train and dev tasks are serialized into SFT records.",
+    "Each SFT record trains only its final assistant message.",
+    "Every model input includes the explicit custom action and tool contract.",
+    "No hidden chain-of-thought is stored."
+  ],
+  "seed": 20260819,
+  "sft_record_counts": {
+    "dev": 78,
+    "train": 440
+  },
+  "task_counts": {
+    "dev": 30,
+    "test": 48,
+    "train": 180
+  },
+  "template_ids": {
+    "dev": [
+      "offer.dev.customer_request.en",
+      "policy.dev.check_request.id",
+      "search.dev.brand.id"
+    ],
+    "test": [
+      "offer.test.cap_request.en",
+      "offer.test.cap_request.id",
+      "policy.test.audit.en",
+      "policy.test.audit.id",
+      "search.test.combined.en",
+      "search.test.combined.id"
+    ],
+    "train": [
+      "offer.train.maximum.id",
+      "offer.train.out_of_stock.id",
+      "offer.train.quantity.id",
+      "offer.train.requested.id",
+      "offer.train.safe.en",
+      "policy.train.eligibility.id",
+      "policy.train.limit.en",
+      "policy.train.limit.id",
+      "policy.train.proposal.id",
+      "policy.train.source.id",
+      "search.train.budget.en",
+      "search.train.budget.id",
+      "search.train.color.id",
+      "search.train.keyword.id",
+      "search.train.missing_budget.id"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "action_model": "sellerops-sft",
+  "router_model": "qwen-base",
+  "model_sources": {
+    "sellerops-sft": {
+      "local": true,
+      "model_path": "/Users/emeryzwageri/llm-post-training-lab/projects/sellerops-agent/results/sft/20260917-234821-full-sft/final-model",
+      "tokenizer_path": "/Users/emeryzwageri/llm-post-training-lab/projects/sellerops-agent/results/sft/20260917-234821-full-sft/final-model"
+    },
+    "qwen-base": {
+      "local": false,
+      "model_name": "Qwen/Qwen2.5-0.5B-Instruct"
+    }
+  },
+  "source_sha256": "af7604a618d02ad62046bbabba22df9ec3a153ab62977e4c11b6fc0f052cffb4",
+  "task_source_sha256": "63fc340abe06b839bb7e2ade1d2f1834f076ea7b3dcfa215b32b65f2b83fece3",
+  "answer_key_sha256": "71dbfaf1b057c497ca4259f91fc0f3553908423a35eb3e0c88c51c56f44a045b",
+  "environment_sha256": "4dd7ca5ae54805abc3fccc57d8177d6de1af83893bd2de6a781d92296c39c12e",
+  "answer_key_manifest_sha256": "0702852b8ff414c0937162a6f9acaf5ca4019a03d29109e5561272ae16e1e7df",
+  "answer_key_version": "sellerops-dev-answers-v1",
+  "answer_key_author_model": "gpt-6-astra",
+  "dataset_version": "sellerops-sft-v0.2",
+  "environment_version": "sellerops-sim-v0.1",
+  "max_model_calls": 8,
+  "max_new_tokens": 256,
+  "max_retries": 2,
+  "repetitions": 1,
+  "pass_k": 1,
+  "temperature": 0.0,
+  "generation_base_seed": 42,
+  "split": "dev",
+  "selected_task_ids": [
+    "dev-search-dev-brand-id-000"
+  ],
+  "cloud": false,
+  "do_sample": false,
+  "max_concurrency": 0,
+  "judge": {
+    "provider": "none"
+  }
+}

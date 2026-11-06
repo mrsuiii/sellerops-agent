@@ -1,0 +1,8 @@
+# Model weights & training checkpoints (too large for GitHub)
+results/**/final-model/
+results/**/checkpoints/
+*.safetensors
+*.bin
+*.pth
+*.pt
+*.ckpt

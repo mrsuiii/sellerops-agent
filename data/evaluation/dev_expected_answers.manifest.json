@@ -1,0 +1,10 @@
+{
+  "answer_key_version": "sellerops-dev-answers-v1",
+  "author_model": "gpt-6-astra",
+  "created_on": "2026-10-05",
+  "split": "dev",
+  "task_count": 30,
+  "task_source_sha256": "63fc340abe06b839bb7e2ade1d2f1834f076ea7b3dcfa215b32b65f2b83fece3",
+  "answer_key_sha256": "71dbfaf1b057c497ca4259f91fc0f3553908423a35eb3e0c88c51c56f44a045b",
+  "environment_sha256": "4dd7ca5ae54805abc3fccc57d8177d6de1af83893bd2de6a781d92296c39c12e"
+}

@@ -1,0 +1,32 @@
+{
+  "episodes": 1,
+  "scored_episodes": 1,
+  "evaluation_errors": 0,
+  "passed": 0,
+  "structured_outcome_pass_rate": 0.0,
+  "runtime_failures": 0,
+  "reason_counts": {
+    "missing_structured_outcome": 1
+  },
+  "mean_model_calls": 2,
+  "mean_tool_calls": 0,
+  "mean_retry_count": 1,
+  "latency_p50_seconds": 5.819864207995124,
+  "latency_p95_seconds": 5.819864207995124,
+  "answer_groundedness": "not_evaluated",
+  "pass@1": 0.0,
+  "router_schema_validity": 0.5,
+  "action_schema_validity": null,
+  "by_family": {
+    "product_search": {
+      "episodes": 1,
+      "passed": 0,
+      "evaluation_errors": 0
+    }
+  },
+  "experiment_name": "healthy-energy-76",
+  "expected_episodes": 1,
+  "repetitions": 1,
+  "pass_k": 1,
+  "complete": true
+}
