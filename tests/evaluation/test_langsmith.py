@@ -406,3 +406,46 @@ def test_local_model_trace_and_real_token_counts(monkeypatch):
     assert child.outputs["choices"][0]["message"]["content"] == json.dumps(FINAL)
     assert set(child.inputs) == {"messages"}
     assert child.metadata["model_revision"] == "revision-for-test"
+
+
+def test_rule_router_target_passes_without_router_model(monkeypatch):
+    calls = script(monkeypatch, [STOCK, FINAL])
+    output = make_target(router_mode="rule")(INPUTS)
+    assert [c[1]["configurable"]["model_name"] for c in calls] == ["sellerops-sft"] * 2
+    assert output["model_calls"] == output["committed_model_calls"] == 2
+    assert [a["node"] for a in output["attempts"]] == ["action", "action"]
+    assert output["response"] == FINAL["message"]
+    assert evaluators.grade_episode(TASK, output)["decision"] == "pass"
+    summary = runner.summarize([{
+        "task_id": TASK["task_id"], "family": TASK["family"], "output": output,
+        "evaluation_error": None, "reason_code": "outcome_valid",
+        "scores": {"structured_outcome_pass": 1},
+    }])
+    assert summary["router_schema_validity"] is None
+    assert summary["router_act_text_dropped"] == 0
+
+
+def test_normalized_act_text_is_counted_in_summary(monkeypatch):
+    script(monkeypatch, [{"decision": "act", "text": "cek stok"}, STOCK, ACT, FINAL, REPLY])
+    output = make_target()(INPUTS)
+    assert evaluators.grade_episode(TASK, output)["decision"] == "pass"
+    assert output["attempts"][0]["normalized"] == "act_text_dropped"
+    assert output["attempts"][0]["schema_valid"] is True
+    summary = runner.summarize([{
+        "task_id": TASK["task_id"], "family": TASK["family"], "output": output,
+        "evaluation_error": None, "reason_code": "outcome_valid",
+        "scores": {"structured_outcome_pass": 1},
+    }])
+    assert summary["router_act_text_dropped"] == 1
+
+
+def test_strict_router_reproduces_old_behaviour(monkeypatch):
+    script(monkeypatch, [{"decision": "act", "text": "cek stok"}] * 3)
+    output = make_target(strict_router_schema=True)(INPUTS)
+    assert output["failure_reason"] == "retry_exhausted"
+    assert output["tool_calls"] == 0
+
+
+def test_invalid_router_mode_rejected_before_running():
+    with pytest.raises(ValueError, match="router_mode"):
+        make_target(router_mode="magic")

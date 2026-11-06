@@ -117,6 +117,16 @@ error, belum ditangani menjadi respons percakapan oleh graph langsung. Evaluatio
 target menangkapnya sebagai failed episode. Belum ada replan, memory persisten,
 timeout, atau integrasi verifier di dalam loop runtime.
 
+## Router berbasis aturan
+
+`configurable.router_mode="rule"` mengganti router model dengan `rule_route`
+di `agent/nodes.py`: pesan terakhir berupa `final` SFT menjadi reply,
+`ask_user` menjadi pertanyaan, dan selain itu selalu `act`. Tidak ada panggilan
+model untuk router, sehingga `model_calls` hanya menghitung SFT. Pada mode
+`llm`, `act` yang membawa teks kini dinormalisasi (teks dibuang) kecuali
+`strict_router_schema=True`. Lihat `test_rule_router_*` di
+`tests/test_agent_graph.py`.
+
 ## Evaluasi melalui LangSmith SDK
 
 Runner di `evaluation/runner.py` menjalankan graph ini per task dev, lalu

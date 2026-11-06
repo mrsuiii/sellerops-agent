@@ -175,6 +175,31 @@ Router default tetap `qwen-base`. SDK menampilkan tautan eksperimen cloud.
 Evaluasi berurutan (`max_concurrency=0` pada SDK), karena model lokal memakai
 cache adapter bersama. Ini belum pengujian concurrent users.
 
+## Mode router
+
+Evaluasi penuh 6 Oktober 2026 menghasilkan 0/30 karena router `qwen-base`
+selalu menulis penjelasan pada keputusan `act`, sehingga model SFT tidak pernah
+dipanggil. Ada dua perbaikan, keduanya bisa dipilih dari CLI:
+
+- **Default (`--router-mode llm`)**: `act` dengan `text` tidak kosong kini
+  diterima dan teksnya dibuang, karena teks itu memang tidak pernah dipakai.
+  Jumlahnya tercatat sebagai `router_act_text_dropped` di `summary.json` dan
+  `normalized: "act_text_dropped"` pada attempt terkait. `--strict-router`
+  mengembalikan perilaku lama untuk mereproduksi run sebelumnya.
+- **`--router-mode rule`**: router deterministik tanpa panggilan model. Setiap
+  pesan user dan observasi tool diteruskan ke SFT; `final` SFT ditampilkan
+  dengan `message`-nya dan `ask_user` dengan `question`-nya. Mode ini
+  mengukur kemampuan model SFT tanpa dipengaruhi router. Sapaan atau obrolan
+  bebas juga diteruskan ke SFT.
+
+Bandingkan ketiganya pada 30 task dev:
+
+```bash
+python scripts/evaluate_agent.py --offline --router-mode rule
+python scripts/evaluate_agent.py --offline --router-mode llm
+python scripts/evaluate_agent.py --offline --router-mode llm --strict-router
+```
+
 ## Judge teks jawaban (opsional)
 
 Aktifkan `--judge gemini` untuk memeriksa jawaban akhir dengan Gemini API.

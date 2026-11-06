@@ -45,6 +45,13 @@ def model_attempt(node: str, model: str):
         _current.reset(token)
 
 
+def note_attempt(**fields) -> None:
+    """Annotate the current attempt (for example, a normalized output)."""
+    event = _current.get()
+    if event is not None:
+        event.update(fields)
+
+
 def record_generation(source: str, revision: str | None, usage: dict) -> None:
     """Record actual tokenizer counts, both locally and on the LLM trace."""
     event = _current.get()
