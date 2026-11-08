@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kala Studio</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="#/">KALA<span>studio</span></a>
+    <form class="search" id="search-form" role="search">
+      <input id="search-input" type="search" placeholder="Cari kemeja, sepatu, jam tangan…" autocomplete="off">
+    </form>
+    <button class="cart-btn" id="cart-open" aria-label="Keranjang">Keranjang <span id="cart-count">0</span></button>
+  </header>
+
+  <main id="view-shop">
+    <section class="hero">
+      <p class="eyebrow">Koleksi musim ini</p>
+      <h1>Pakaian, sepatu, dan aksesori pilihan.</h1>
+      <p class="hero-sub">Toko demo untuk SellerOps Agent. Data produk dari DummyJSON, harga dalam Rupiah.</p>
+    </section>
+
+    <nav class="chips" id="category-chips" aria-label="Kategori"></nav>
+
+    <div class="layout">
+      <aside class="filters" id="filters">
+        <h2>Filter</h2>
+        <label>Untuk
+          <select id="f-audience">
+            <option value="">Semua</option>
+            <option value="men">Pria</option>
+            <option value="women">Wanita</option>
+            <option value="unisex">Unisex</option>
+          </select>
+        </label>
+        <label>Brand
+          <select id="f-brand"><option value="">Semua brand</option></select>
+        </label>
+        <label>Harga maksimal
+          <select id="f-max-price">
+            <option value="">Tanpa batas</option>
+            <option value="300000">Rp300.000</option>
+            <option value="500000">Rp500.000</option>
+            <option value="1000000">Rp1.000.000</option>
+            <option value="2500000">Rp2.500.000</option>
+            <option value="5000000">Rp5.000.000</option>
+          </select>
+        </label>
+        <label>Rating minimal
+          <select id="f-min-rating">
+            <option value="">Semua</option>
+            <option value="4">4+</option>
+            <option value="4.5">4.5+</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="f-in-stock"> Hanya yang ada stok</label>
+        <label>Urutkan
+          <select id="f-sort">
+            <option value="relevance">Paling relevan</option>
+            <option value="price_asc">Harga terendah</option>
+            <option value="price_desc">Harga tertinggi</option>
+            <option value="rating">Rating tertinggi</option>
+            <option value="discount">Diskon terbesar</option>
+          </select>
+        </label>
+        <button class="link-btn" id="f-reset" type="button">Reset filter</button>
+      </aside>
+
+      <section class="results">
+        <p class="result-meta" id="result-meta"></p>
+        <div class="grid" id="grid"></div>
+        <div class="pager" id="pager"></div>
+      </section>
+    </div>
+  </main>
+
+  <main id="view-product" hidden></main>
+
+  <div class="drawer-backdrop" id="cart-backdrop" hidden></div>
+  <aside class="drawer" id="cart" aria-label="Keranjang" hidden>
+    <div class="drawer-head">
+      <h2>Keranjang</h2>
+      <button class="link-btn" id="cart-close">Tutup</button>
+    </div>
+    <div id="cart-items"></div>
+    <div class="drawer-foot">
+      <div class="total"><span>Total</span><strong id="cart-total">Rp0</strong></div>
+      <button class="primary" id="checkout">Checkout (demo)</button>
+    </div>
+  </aside>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

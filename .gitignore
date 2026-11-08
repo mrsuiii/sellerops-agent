@@ -6,3 +6,7 @@ results/**/checkpoints/
 *.pth
 *.pt
 *.ckpt
+
+# Python bytecode
+__pycache__/
+*.pyc
