@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-# Agent nodes import torch; skip when the `local-model` extra is not installed (e.g. CI).
+# Agent nodes import torch; skip when the `local-model` extra is not installed (e.g. a torch-free env).
 torch = pytest.importorskip("torch")
 
 from langchain_core.messages import HumanMessage, SystemMessage

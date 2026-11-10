@@ -1,7 +1,5 @@
 # SellerOps Agent
 
-[![CI](https://github.com/mrsuiii/sellerops-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mrsuiii/sellerops-agent/actions/workflows/ci.yml)
-
 Tool-using e-commerce agents on one marketplace, with a deterministic simulator,
 an evaluation harness, and a demo fashion store ("Kala Studio").
 
@@ -110,6 +108,7 @@ It runs as a non-root user and exposes a health check at `/api/health`.
 
 ## Current status
 
-- 116 torch-free tests pass in CI; 3 test modules need the `local-model` extra.
+- 116 torch-free tests pass; 3 test modules need the `local-model` extra.
+- No CI: run `make lint test` (or `pre-commit install` once) before pushing.
 - Full SFT of Qwen2.5-0.5B-Instruct: schema validity 17.9% → 100%, exact action 0% → 70.5% (dev).
 - End-to-end dev eval is 0/30: the base-model router emits text on `act`, so the SFT action model is never called.

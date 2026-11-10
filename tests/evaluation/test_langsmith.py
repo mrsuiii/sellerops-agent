@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import pytest
 
-# Agent nodes import torch; skip when the `local-model` extra is not installed (e.g. CI).
+# Agent nodes import torch; skip when the `local-model` extra is not installed (e.g. a torch-free env).
 pytest.importorskip("torch")
 
 import requests
