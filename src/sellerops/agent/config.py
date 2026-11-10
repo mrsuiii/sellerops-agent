@@ -1,9 +1,8 @@
-"""Named model sources. Paths are relative to the project, not the working directory."""
+"""Named model sources. Paths resolve under SELLEROPS_RESULTS_DIR (default: <project>/results)."""
 
-from pathlib import Path
+from ..settings import get_settings
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-SFT_RUN = PROJECT_ROOT / "results" / "sft" / "20260917-234821-full-sft"
+SFT_RUN = get_settings().results_dir / "sft" / "20260917-234821-full-sft"
 
 # Values are keyword arguments for ModelAdapter. Add new model aliases here.
 MODEL_CONFIGS = {

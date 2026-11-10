@@ -16,7 +16,7 @@ test:
 	pytest -q
 
 store:          ## Run the Kala Studio demo store on :8000
-	uvicorn sellerops.store.api:app --reload --app-dir src
+	uvicorn sellerops.store.api:app --reload
 
 docker:
 	docker build -t sellerops-store . && docker run --rm -p 8000:8000 sellerops-store

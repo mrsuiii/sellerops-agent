@@ -16,12 +16,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import urllib.request
 from pathlib import Path
 from typing import Any
 
+from sellerops.logging_config import configure_logging
+from sellerops.settings import get_settings
+
+logger = logging.getLogger(__name__)
+
 SOURCE_URL = "https://raw.githubusercontent.com/Ovi/DummyJSON/master/database/products.json"
-OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "store" / "fashion_catalog.json"
 
 USD_TO_IDR = 16_000
 
@@ -96,12 +101,14 @@ def build_catalog(raw_products: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--source", type=Path, help="Local DummyJSON products.json instead of downloading.")
-    parser.add_argument("--output", type=Path, default=OUTPUT_PATH)
+    parser.add_argument("--output", type=Path, default=get_settings().catalog_path)
     args = parser.parse_args()
+    configure_logging()
 
     if args.source:
         raw = json.loads(args.source.read_text(encoding="utf-8"))
     else:
+        logger.info("downloading %s", SOURCE_URL)
         with urllib.request.urlopen(SOURCE_URL, timeout=30) as response:
             raw = json.loads(response.read().decode("utf-8"))
 
@@ -115,7 +122,7 @@ def main() -> None:
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"Wrote {len(catalog['products'])} products to {args.output}")
+    logger.info("wrote %d products to %s", len(catalog["products"]), args.output)
 
 
 if __name__ == "__main__":

@@ -80,3 +80,26 @@ def test_api_endpoints():
     rec = client.post("/api/recommend", json={"query": "gold watch", "audience": "women", "limit": 2}).json()
     assert len(rec["items"]) <= 2
     assert client.get("/").status_code == 200
+
+
+def test_api_request_id_and_internal_errors_are_hidden(monkeypatch):
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from sellerops.store import api
+
+    client = TestClient(api.app, raise_server_exceptions=False)
+    response = client.get("/api/health", headers={"x-request-id": "req-1"})
+    assert response.headers["x-request-id"] == "req-1"
+    assert response.json()["version"]
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("secret internals")
+
+    monkeypatch.setattr(api, "load_catalog", boom)
+    response = client.get("/api/categories")
+    assert response.status_code == 500
+    body = response.json()
+    assert body["detail"] == "Internal server error"
+    assert "secret" not in response.text
+    assert response.headers["x-request-id"] == body["request_id"]

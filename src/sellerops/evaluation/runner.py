@@ -13,7 +13,8 @@ from langsmith.run_helpers import tracing_context
 
 from ..agent.config import MODEL_CONFIGS
 from ..schemas import MAX_AGENT_RETRIES
-from .dataset import PROJECT_ROOT, as_examples, load_dev_records, prepare_cloud_dataset
+from ..settings import get_settings
+from .dataset import as_examples, load_dev_records, prepare_cloud_dataset
 from .evaluators import episode_evaluator
 from .judge import DEFAULT_MODEL, GeminiJudge, with_judge
 from .metrics import make_pass_summary, pass_metrics, validate_repetitions
@@ -118,7 +119,7 @@ def run_evaluation(*, cloud=False, limit=None, action_model="sellerops-sft",
     client = Client() if cloud else Client(api_url="http://localhost:1984", api_key="offline",
                                           auto_batch_tracing=False, info={})
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
-    destination = (output_root or PROJECT_ROOT / "results/evaluation") / f"{run_id}-{action_model}"
+    destination = (output_root or get_settings().results_dir / "evaluation") / f"{run_id}-{action_model}"
     records = []
     try:
         if cloud:
