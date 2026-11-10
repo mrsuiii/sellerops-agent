@@ -20,7 +20,6 @@ from pydantic import BaseModel, Field
 
 from .catalog import ProductFilter, SortKey, load_catalog, summary
 
-
 WEB_DIR = Path(__file__).resolve().parents[3] / "web"
 
 app = FastAPI(title="Kala Studio API", version="0.1.0")

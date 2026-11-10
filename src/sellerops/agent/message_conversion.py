@@ -5,8 +5,8 @@ local model can receive the same assistant content format used during SFT.
 Only decoded completion text (not the prompt) belongs in model_output_to_ai_message.
 """
 
-from copy import deepcopy
 import json
+from copy import deepcopy
 from typing import Any
 from uuid import uuid4
 

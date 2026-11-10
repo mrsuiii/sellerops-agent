@@ -6,7 +6,6 @@ import json
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-
 ACTION_TYPES = {"tool_call", "ask_user", "final"}
 TOOL_NAMES = {
     "search_products",

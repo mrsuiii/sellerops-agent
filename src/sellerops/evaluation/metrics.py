@@ -45,7 +45,7 @@ def make_pass_summary(*, repetitions, k, task_ids, include_judge=False):
     def pass_summary(runs, examples):
         samples = []
         judged_samples = []
-        for run, example in zip(runs, examples):
+        for run, example in zip(runs, examples, strict=False):
             score = None
             if not run.error and run.outputs:
                 try:

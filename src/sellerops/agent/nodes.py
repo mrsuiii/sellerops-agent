@@ -1,29 +1,33 @@
 """Model node for the SellerOps structured-action agent."""
 
-from functools import lru_cache
-from contextlib import nullcontext
 import json
 import math
+from contextlib import nullcontext
+from functools import lru_cache
 from typing import Any
 
 import torch
-from langsmith import traceable
-from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableConfig
+from langsmith import traceable
 
 from sellerops.agent.config import MODEL_CONFIGS
 from sellerops.agent.message_conversion import (
-    model_output_to_ai_message, observation_to_tool_message, tool_call_to_action,
+    model_output_to_ai_message,
+    observation_to_tool_message,
+    tool_call_to_action,
 )
 from sellerops.agent.model_adapter import ModelAdapter
 from sellerops.agent.state import AgentState
 from sellerops.dataset import SYSTEM_PROMPT
 from sellerops.evaluation.telemetry import (
-    llm_trace_inputs, llm_trace_outputs, model_attempt, record_generation,
+    llm_trace_inputs,
+    llm_trace_outputs,
+    model_attempt,
+    record_generation,
 )
 from sellerops.schemas import MAX_AGENT_RETRIES, SchemaError, canonical_json
 from sellerops.services.episode_service.episode_service import EpisodeService
-
 
 # Keep the router and SFT adapters loaded across sequential graph steps.
 _load_model = lru_cache(maxsize=2)(ModelAdapter)

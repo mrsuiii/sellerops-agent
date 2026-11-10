@@ -1,7 +1,7 @@
 """Load reviewed dev references separately from training/oracle task records."""
 
-from hashlib import sha256
 import json
+from hashlib import sha256
 
 from ..environment import environment_fixtures
 from ..schemas import canonical_json, validate_action

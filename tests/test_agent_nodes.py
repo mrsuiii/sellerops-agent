@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+
 # Agent nodes import torch; skip when the `local-model` extra is not installed (e.g. CI).
 torch = pytest.importorskip("torch")
 

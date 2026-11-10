@@ -1,7 +1,7 @@
 """Replay observations from saved episodes without modifying their source."""
 
-from copy import deepcopy
 import json
+from copy import deepcopy
 from typing import Any
 
 import pytest

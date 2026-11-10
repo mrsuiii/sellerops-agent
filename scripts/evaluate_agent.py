@@ -3,16 +3,16 @@
 
 import argparse
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from sellerops.agent.config import MODEL_CONFIGS
-from sellerops.schemas import MAX_AGENT_RETRIES
-from sellerops.evaluation.runner import run_evaluation
 from sellerops.evaluation.judge import DEFAULT_MODEL
+from sellerops.evaluation.runner import run_evaluation
+from sellerops.schemas import MAX_AGENT_RETRIES
 
 
 def main():

@@ -1,7 +1,7 @@
 """Answer keys stay complete, grounded, versioned, and outside agent inputs."""
 
-from hashlib import sha256
 import json
+from hashlib import sha256
 from pathlib import Path
 
 import pytest

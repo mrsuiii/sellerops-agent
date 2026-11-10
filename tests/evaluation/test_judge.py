@@ -1,7 +1,7 @@
 """Judge transport/protocol tests; no external API calls or model-quality claims."""
 
-from io import BytesIO
 import json
+from io import BytesIO
 from urllib.error import HTTPError, URLError
 
 import pytest
