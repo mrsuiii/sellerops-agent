@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sellerops-agent"
+version = "0.1.0"
+description = "SellerOps: tool-using seller/buyer agents, deterministic simulator, evaluation harness and the Kala Studio demo store."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "mrsuiii" }]
+# Core package (schemas, simulator, dataset, episode service, verifier) is stdlib-only.
+dependencies = []
+
+[project.optional-dependencies]
+# Demo store API (FastAPI + static frontend).
+store = ["fastapi>=0.115", "uvicorn[standard]>=0.30"]
+# LangGraph agent runtime.
+agent = ["langgraph>=1.0", "langchain>=1.0", "langchain-core>=1.0", "langsmith>=0.4"]
+# Evaluation harness (LangSmith runner, optional Gemini judge).
+eval = ["sellerops-agent[agent]", "requests>=2.31"]
+# Local Hugging Face models (Qwen base / SFT checkpoint). Heavy: pulls in torch.
+local-model = ["torch>=2.4", "transformers>=4.45", "accelerate>=1.0"]
+dev = [
+  "sellerops-agent[store,eval]",
+  "pytest>=8",
+  "httpx>=0.27",
+  "ruff>=0.6",
+  "pre-commit>=3.7",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+# Conservative baseline: real bugs + import order. Tighten over time.
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+  "E501",  # long lines: let the formatter decide
+  "B008",  # FastAPI Query(...) defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402"]  # sys.path setup before imports
+"tests/*" = ["E402"]

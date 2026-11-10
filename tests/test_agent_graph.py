@@ -3,6 +3,9 @@
 import json
 
 import pytest
+# Agent nodes import torch; skip when the `local-model` extra is not installed (e.g. CI).
+pytest.importorskip("torch")
+
 from langchain_core.messages import HumanMessage, ToolMessage
 
 from sellerops.agent import nodes

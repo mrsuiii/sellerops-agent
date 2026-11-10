@@ -7,6 +7,9 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+# Agent nodes import torch; skip when the `local-model` extra is not installed (e.g. CI).
+pytest.importorskip("torch")
+
 import requests
 from langsmith import Client, traceable
 from langsmith.run_helpers import tracing_context

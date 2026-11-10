@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "ruff>=0.6"
+      - run: ruff check src scripts tests
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      # torch/transformers (local-model extra) are skipped in CI; tests that
+      # need them are skipped automatically via pytest.importorskip.
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t sellerops-store .
+      - name: Smoke test /api/health
+        run: |
+          docker run -d --name store -p 8000:8000 sellerops-store
+          for i in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8000/api/health && exit 0
+            sleep 1
+          done
+          docker logs store
+          exit 1
