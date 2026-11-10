@@ -13,7 +13,7 @@ WORKDIR /app
 # Install dependencies first for better layer caching.
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip install ".[store]"
+RUN pip install -e ".[store]"
 
 # Runtime assets read relative to the project root.
 COPY data/store ./data/store
