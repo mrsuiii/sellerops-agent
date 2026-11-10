@@ -1,9 +1,9 @@
 """Optional Gemini prose judge. No SDK dependency and no hidden retries."""
 
-from hashlib import sha256
 import json
 import os
 import re
+from hashlib import sha256
 from time import perf_counter
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen

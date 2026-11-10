@@ -1,12 +1,16 @@
 """Use the real graph, simulator, grader and LangSmith SDK without network/weights."""
 
-from copy import deepcopy
 import json
+from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+
+# Agent nodes import torch; skip when the `local-model` extra is not installed (e.g. a torch-free env).
+pytest.importorskip("torch")
+
 import requests
 from langsmith import Client, traceable
 from langsmith.run_helpers import tracing_context
@@ -15,8 +19,8 @@ from langsmith.utils import LangSmithNotFoundError
 
 from sellerops.agent import nodes
 from sellerops.evaluation import dataset, evaluators, runner
-from sellerops.evaluation.target import make_target
 from sellerops.evaluation.metrics import pass_metrics
+from sellerops.evaluation.target import make_target
 
 ACT = {"decision": "act", "text": ""}
 STOCK = {"type": "tool_call", "tool": "get_inventory", "arguments": {"product_id": "P1001"}}
@@ -189,8 +193,8 @@ def test_invalid_eval_configuration_before_work(options, tmp_path):
 
 
 def test_sdk_repetitions_and_summary_feedback_match_local_report(monkeypatch, tmp_path):
-    from pathlib import Path
     from collections import Counter
+    from pathlib import Path
     monkeypatch.setattr(runner, "load_dev_records", lambda: [dev_record("a"), dev_record("b")])
     successful = [ACT, STOCK, ACT, FINAL, REPLY]
     script(monkeypatch, successful + ["bad"] + successful + ["bad"] * 3)
@@ -263,6 +267,7 @@ def test_real_answer_key_is_exported_by_sdk_without_entering_prompt(monkeypatch,
 @pytest.mark.parametrize("verdict", [True, False, "error", "skip"])
 def test_judge_sdk_aggregates_once_per_eligible_episode(monkeypatch, tmp_path, verdict):
     from pathlib import Path
+
     from sellerops.evaluation.judge import GeminiJudge, JudgeError
     record = dataset.load_dev_records()[0]
     ref = record["outputs"]
@@ -377,8 +382,9 @@ def test_cloud_dataset_reuse_and_interrupted_population():
 
 def test_local_model_trace_and_real_token_counts(monkeypatch):
     import torch
-    from sellerops.evaluation.telemetry import capture_attempts
     from langchain_core.messages import HumanMessage
+
+    from sellerops.evaluation.telemetry import capture_attempts
 
     tokenizer = Mock()
     tokenizer.apply_chat_template.return_value = {"input_ids": torch.tensor([[10, 11]])}

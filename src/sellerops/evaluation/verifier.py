@@ -1,7 +1,7 @@
 """Verify structured SellerOps outcomes without choosing agent actions or routes."""
 
-from copy import deepcopy
 import json
+from copy import deepcopy
 from typing import Any
 
 from ..schemas import FAMILIES, canonical_json, validate_action

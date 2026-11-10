@@ -1,6 +1,8 @@
-from langchain.messages import AnyMessage
-from typing_extensions import TypedDict, Annotated, NotRequired, Literal
 import operator
+from typing import Annotated, Literal, NotRequired
+
+from langchain.messages import AnyMessage
+from typing_extensions import TypedDict
 
 
 class AgentState(TypedDict):

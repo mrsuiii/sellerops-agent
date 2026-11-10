@@ -20,7 +20,6 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-
 SOURCE_URL = "https://raw.githubusercontent.com/Ovi/DummyJSON/master/database/products.json"
 OUTPUT_PATH = Path(__file__).resolve().parents[1] / "data" / "store" / "fashion_catalog.json"
 

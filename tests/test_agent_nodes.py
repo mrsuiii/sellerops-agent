@@ -4,7 +4,10 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-import torch
+
+# Agent nodes import torch; skip when the `local-model` extra is not installed (e.g. a torch-free env).
+torch = pytest.importorskip("torch")
+
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 

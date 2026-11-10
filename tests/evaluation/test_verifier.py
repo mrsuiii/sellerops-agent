@@ -1,17 +1,17 @@
 """Outcome verification checks using hand-built cases and train/dev data only."""
 
-from copy import deepcopy
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from sellerops.environment import SellerEnvironment
+from sellerops.evaluation import verify_outcome
 from sellerops.schemas import validate_evaluation_result
 from sellerops.services.episode_service.episode_service import EpisodeService
 from sellerops.services.episode_service.episode_state import EpisodeState
-from sellerops.evaluation import verify_outcome
 
 
 def task_spec(family: str, **context: Any) -> dict[str, Any]:
