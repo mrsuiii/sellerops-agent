@@ -3,19 +3,17 @@
 
 import argparse
 import json
-import sys
 from pathlib import Path
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from sellerops.agent.config import MODEL_CONFIGS
 from sellerops.evaluation.judge import DEFAULT_MODEL
 from sellerops.evaluation.runner import run_evaluation
+from sellerops.logging_config import configure_logging
 from sellerops.schemas import MAX_AGENT_RETRIES
 
 
 def main():
+    configure_logging()
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--offline", action="store_true", help="SDK evaluation without cloud uploads")

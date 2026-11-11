@@ -2,27 +2,90 @@
 
 Run from the project directory:
 
-    uvicorn sellerops.store.api:app --reload --app-dir src
+    make store            # or: uvicorn sellerops.store.api:app --reload
 
 Then open http://127.0.0.1:8000 for the shop and http://127.0.0.1:8000/docs
 for the API. The frontend in ``web/`` is plain HTML/JS served by this app.
+Configuration comes from ``SELLEROPS_*`` environment variables
+(see ``sellerops.settings``).
 """
 
 from __future__ import annotations
 
-from pathlib import Path
+import logging
+import time
+import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from ..logging_config import configure_logging
+from ..settings import get_settings
 from .catalog import ProductFilter, SortKey, load_catalog, summary
 
-WEB_DIR = Path(__file__).resolve().parents[3] / "web"
+logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Kala Studio API", version="0.1.0")
+try:
+    APP_VERSION = package_version("sellerops-agent")
+except PackageNotFoundError:  # running from a source tree without installing
+    APP_VERSION = "0.0.0+local"
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    # Load (and validate) the catalog at startup so a bad path fails fast,
+    # not on the first customer request.
+    catalog = load_catalog()
+    logger.info("store started", extra={"products": len(catalog.products), "version": APP_VERSION})
+    yield
+
+
+settings = get_settings()
+configure_logging()
+
+app = FastAPI(title="Kala Studio API", version=APP_VERSION, lifespan=lifespan)
+
+if settings.cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_origins),
+        allow_methods=["GET", "POST"],
+        allow_headers=["*"],
+    )
+
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    """Attach a request id, log one line per request, and hide internal errors."""
+
+    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception("unhandled error", extra={"request_id": request_id, "path": request.url.path})
+        response = JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error", "request_id": request_id},
+        )
+    duration_ms = round((time.perf_counter() - started) * 1000, 1)
+    response.headers["x-request-id"] = request_id
+    logger.info(
+        "%s %s %s",
+        request.method,
+        request.url.path,
+        response.status_code,
+        extra={"request_id": request_id, "status": response.status_code, "duration_ms": duration_ms},
+    )
+    return response
 
 
 class RecommendRequest(BaseModel):
@@ -44,7 +107,7 @@ class RecommendRequest(BaseModel):
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     catalog = load_catalog()
-    return {"status": "ok", "products": len(catalog.products), **catalog.meta}
+    return {"status": "ok", "version": APP_VERSION, "products": len(catalog.products), **catalog.meta}
 
 
 @app.get("/api/categories")
@@ -100,9 +163,11 @@ def recommend(body: RecommendRequest) -> dict[str, Any]:
     return {"items": items}
 
 
-if WEB_DIR.is_dir():
-    app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+if settings.web_dir.is_dir():
+    app.mount("/static", StaticFiles(directory=settings.web_dir), name="static")
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
-        return FileResponse(WEB_DIR / "index.html")
+        return FileResponse(settings.web_dir / "index.html")
+else:
+    logger.warning("web dir not found; serving API only", extra={"web_dir": str(settings.web_dir)})

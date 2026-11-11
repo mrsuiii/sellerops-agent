@@ -8,7 +8,7 @@ HTML/CSS/JS in this folder, served by the same app. No build step.
 
 ```bash
 pip install -r configs/requirements.store.txt
-uvicorn sellerops.store.api:app --reload --app-dir src
+uvicorn sellerops.store.api:app --reload
 ```
 
 Open http://127.0.0.1:8000 (shop) and http://127.0.0.1:8000/docs (API).

@@ -3,7 +3,6 @@
 import json
 from copy import deepcopy
 from hashlib import sha256
-from pathlib import Path
 from uuid import NAMESPACE_URL, uuid5
 
 from langsmith.schemas import Example
@@ -11,9 +10,10 @@ from langsmith.utils import LangSmithNotFoundError
 
 from ..dataset import DATASET_VERSION, ENVIRONMENT_VERSION
 from ..schemas import canonical_json, validate_task
+from ..settings import get_settings
 from .answer_keys import load_answer_keys
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = get_settings().project_root
 
 def load_dev_records() -> list[dict]:
     """This first integration intentionally loads only the development split."""

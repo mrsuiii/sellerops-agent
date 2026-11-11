@@ -19,7 +19,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
-CATALOG_PATH = Path(__file__).resolve().parents[3] / "data" / "store" / "fashion_catalog.json"
+from ..settings import get_settings
 
 SortKey = Literal["relevance", "price_asc", "price_desc", "rating", "discount"]
 
@@ -114,7 +114,10 @@ class Catalog:
         self._bm25 = BM25(product_text(p) for p in self.products)
 
     @classmethod
-    def from_file(cls, path: Path = CATALOG_PATH) -> Catalog:
+    def from_file(cls, path: Path | None = None) -> Catalog:
+        """Load a catalog JSON file; defaults to ``SELLEROPS_CATALOG_PATH``."""
+
+        path = path or get_settings().catalog_path
         return cls(json.loads(path.read_text(encoding="utf-8")))
 
     def get(self, product_id: str) -> dict[str, Any] | None:

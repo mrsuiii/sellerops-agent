@@ -45,7 +45,7 @@ Dependency groups (`pyproject.toml`):
 
 | Extra | For |
 | --- | --- |
-| *(none)* | core: schemas, simulator, dataset, episode service, verifier |
+| *(none)* | core: schemas, simulator, dataset, episode service, verifier (+ python-dotenv) |
 | `store` | Kala Studio API (FastAPI, uvicorn) |
 | `agent` | LangGraph runtime |
 | `eval` | evaluation harness (LangSmith, Gemini judge) |
@@ -85,6 +85,15 @@ Secrets and settings come from environment variables; see
 | `LANGSMITH_API_KEY` | `evaluate_agent.py --cloud` |
 | `GEMINI_API_KEY` | optional Gemini prose judge |
 | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | planned hosted-model adapter |
+| `SELLEROPS_PROJECT_ROOT` | repo root (needed for non-editable installs, e.g. Docker) |
+| `SELLEROPS_DATA_DIR`, `SELLEROPS_WEB_DIR`, `SELLEROPS_RESULTS_DIR`, `SELLEROPS_CATALOG_PATH` | override data locations |
+| `SELLEROPS_LOG_LEVEL`, `SELLEROPS_LOG_FORMAT` | `INFO`/`DEBUG`/…, `text` or `json` |
+| `SELLEROPS_CORS_ORIGINS` | comma-separated origins allowed to call the store API |
+
+Code reads these through `sellerops.settings.get_settings()`; a `.env` in the
+project root is loaded automatically (real environment variables win).
+Logging is configured once per entry point via `sellerops.logging_config.configure_logging()`;
+the Docker image logs JSON lines and each store response carries an `x-request-id`.
 
 ## Docker
 
