@@ -45,7 +45,7 @@ Dependency groups (`pyproject.toml`):
 
 | Extra | For |
 | --- | --- |
-| *(none)* | core: schemas, simulator, dataset, episode service, verifier |
+| *(none)* | core: schemas, simulator, dataset, episode service, verifier (+ python-dotenv) |
 | `store` | Kala Studio API (FastAPI, uvicorn) |
 | `agent` | LangGraph runtime |
 | `eval` | evaluation harness (LangSmith, Gemini judge) |

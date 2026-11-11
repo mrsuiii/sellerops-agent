@@ -1,6 +1,6 @@
 """Runtime settings read from environment variables (and an optional ``.env``).
 
-Stdlib only, so the core package stays dependency-free. All variables use the
+``.env`` is loaded with python-dotenv; real environment variables win. All variables use the
 ``SELLEROPS_`` prefix; third-party keys (``LANGSMITH_API_KEY``,
 ``GEMINI_API_KEY``) keep their own names and are read by their libraries.
 
@@ -19,35 +19,14 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 # src/sellerops/settings.py -> repository root (valid for source checkouts and
 # editable installs). Installed wheels should set SELLEROPS_PROJECT_ROOT.
 _SOURCE_ROOT = Path(__file__).resolve().parents[2]
 
 _LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _LOG_FORMATS = {"text", "json"}
-
-
-def load_dotenv(path: Path) -> None:
-    """Load ``KEY=VALUE`` lines into ``os.environ`` without overriding existing values.
-
-    Supports blank lines, ``#`` comments, an optional ``export`` prefix and
-    single/double-quoted values and `` # `` inline comments on unquoted values. Missing files are ignored.
-    """
-
-    if not path.is_file():
-        return
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.removeprefix("export ").split("=", 1)
-        key, value = key.strip(), value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-            value = value[1:-1]
-        else:
-            value = value.split(" #", 1)[0].strip()  # inline comment
-        if key and value and key not in os.environ:
-            os.environ[key] = value
 
 
 def _env_path(name: str, default: Path, root: Path) -> Path:
@@ -84,7 +63,7 @@ class Settings:
     @classmethod
     def from_env(cls) -> Settings:
         root = Path(os.environ.get("SELLEROPS_PROJECT_ROOT") or _SOURCE_ROOT).expanduser().resolve()
-        load_dotenv(root / ".env")
+        load_dotenv(root / ".env", override=False)
         data_dir = _env_path("SELLEROPS_DATA_DIR", root / "data", root)
         return cls(
             project_root=root,

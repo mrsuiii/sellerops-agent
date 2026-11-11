@@ -6,7 +6,7 @@ import logging
 import pytest
 
 from sellerops.logging_config import JsonFormatter
-from sellerops.settings import Settings, get_settings, load_dotenv
+from sellerops.settings import Settings, get_settings
 
 
 @pytest.fixture(autouse=True)
@@ -47,21 +47,16 @@ def test_invalid_choice_fails_fast(monkeypatch):
         Settings.from_env()
 
 
-def test_load_dotenv_does_not_override(monkeypatch, tmp_path):
-    env = tmp_path / ".env"
-    env.write_text(
-        "# comment\n\nexport SELLEROPS_A=1\nSELLEROPS_B='two words'\n"
-        "SELLEROPS_C=3 # inline\nSELLEROPS_EMPTY=\nSELLEROPS_KEEP=from-file\n"
-    )
-    monkeypatch.setenv("SELLEROPS_KEEP", "from-env")
-    load_dotenv(env)
-    import os
-
-    assert os.environ["SELLEROPS_A"] == "1"
-    assert os.environ["SELLEROPS_B"] == "two words"
-    assert os.environ["SELLEROPS_C"] == "3"
-    assert "SELLEROPS_EMPTY" not in os.environ
-    assert os.environ["SELLEROPS_KEEP"] == "from-env"
+def test_dotenv_file_is_loaded_without_overriding_env(monkeypatch, tmp_path):
+    (tmp_path / ".env").write_text("SELLEROPS_LOG_LEVEL=DEBUG\nSELLEROPS_LOG_FORMAT=json\n")
+    monkeypatch.setenv("SELLEROPS_PROJECT_ROOT", str(tmp_path))
+    monkeypatch.setenv("SELLEROPS_LOG_FORMAT", "text")
+    # Register the key with monkeypatch so the value dotenv writes is removed afterwards.
+    monkeypatch.setenv("SELLEROPS_LOG_LEVEL", "unused")
+    monkeypatch.delenv("SELLEROPS_LOG_LEVEL")
+    settings = Settings.from_env()
+    assert settings.log_level == "DEBUG"
+    assert settings.log_format == "text"
 
 
 def test_json_formatter_includes_extra_fields():
