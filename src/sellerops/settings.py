@@ -2,8 +2,9 @@
 
 ``.env`` is loaded with python-dotenv; real environment variables win. All variables use the
 ``SELLEROPS_`` prefix; third-party keys (``LANGSMITH_API_KEY``,
-``GEMINI_API_KEY``, ``ANTHROPIC_API_KEY``) keep their own names and are read by
-their libraries, so they are never stored on ``Settings``. Because ``.env`` is
+``GEMINI_API_KEY``, ``ANTHROPIC_API_KEY``, ``LLM_API_KEY``) keep their own names and
+are read by their libraries or the model adapter, so they are never stored on
+``Settings``. Because ``.env`` is
 loaded into ``os.environ``, ``anthropic.Anthropic()`` picks up a key from ``.env``
 once ``get_settings()`` has run.
 
@@ -31,7 +32,9 @@ _SOURCE_ROOT = Path(__file__).resolve().parents[2]
 _LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _LOG_FORMATS = {"text", "json"}
 _LLM_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+_LLM_PROVIDERS = {"anthropic", "openai_compatible"}
 DEFAULT_LLM_MODEL = "claude-opus-5-5"
+DEFAULT_LLM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
 
 def _env_path(name: str, default: Path, root: Path) -> Path:
@@ -54,6 +57,15 @@ def _env_list(name: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in os.environ.get(name, "").split(",") if item.strip())
 
 
+
+def _llm_model(provider: str) -> str:
+    # Claude uses SELLEROPS_LLM_MODEL; the OpenAI-compatible endpoint keeps LLM_MODEL
+    # (no default: the id depends on the provider's catalog).
+    if provider == "anthropic":
+        return os.environ.get("SELLEROPS_LLM_MODEL", "").strip() or DEFAULT_LLM_MODEL
+    return os.environ.get("LLM_MODEL", "").strip()
+
+
 @dataclass(frozen=True)
 class Settings:
     project_root: Path
@@ -64,14 +76,17 @@ class Settings:
     log_level: str
     log_format: str
     cors_origins: tuple[str, ...]
+    llm_provider: str
     llm_model: str
     llm_effort: str
+    llm_base_url: str  # only used by the openai_compatible provider
 
     @classmethod
     def from_env(cls) -> Settings:
         root = Path(os.environ.get("SELLEROPS_PROJECT_ROOT") or _SOURCE_ROOT).expanduser().resolve()
         load_dotenv(root / ".env", override=False)
         data_dir = _env_path("SELLEROPS_DATA_DIR", root / "data", root)
+        provider = _env_choice("SELLEROPS_LLM_PROVIDER", "anthropic", _LLM_PROVIDERS)
         return cls(
             project_root=root,
             data_dir=data_dir,
@@ -81,8 +96,10 @@ class Settings:
             log_level=_env_choice("SELLEROPS_LOG_LEVEL", "INFO", _LOG_LEVELS, upper=True),
             log_format=_env_choice("SELLEROPS_LOG_FORMAT", "text", _LOG_FORMATS),
             cors_origins=_env_list("SELLEROPS_CORS_ORIGINS"),
-            llm_model=os.environ.get("SELLEROPS_LLM_MODEL", "").strip() or DEFAULT_LLM_MODEL,
+            llm_provider=provider,
+            llm_model=_llm_model(provider),
             llm_effort=_env_choice("SELLEROPS_LLM_EFFORT", "medium", _LLM_EFFORTS),
+            llm_base_url=os.environ.get("LLM_BASE_URL", "").strip() or DEFAULT_LLM_BASE_URL,
         )
 
 

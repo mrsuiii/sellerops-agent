@@ -11,7 +11,8 @@ from sellerops.settings import Settings, get_settings
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    for key in [k for k in __import__("os").environ if k.startswith("SELLEROPS_")]:
+    env = __import__("os").environ
+    for key in [k for k in env if k.startswith("SELLEROPS_") or k in {"LLM_BASE_URL", "LLM_MODEL"}]:
         monkeypatch.delenv(key)
     get_settings.cache_clear()
     yield
@@ -25,6 +26,7 @@ def test_defaults_point_at_repository():
     assert settings.catalog_path.is_file()
     assert settings.log_level == "INFO" and settings.log_format == "text"
     assert settings.cors_origins == ()
+    assert settings.llm_provider == "anthropic"
     assert settings.llm_model == "claude-opus-5-5" and settings.llm_effort == "medium"
 
 
@@ -49,6 +51,24 @@ def test_llm_overrides(monkeypatch):
     assert settings.llm_model == "claude-sonnet-5-5" and settings.llm_effort == "high"
     monkeypatch.setenv("SELLEROPS_LLM_EFFORT", "turbo")
     with pytest.raises(ValueError, match="SELLEROPS_LLM_EFFORT"):
+        Settings.from_env()
+
+
+def test_openai_compatible_provider(monkeypatch, tmp_path):
+    monkeypatch.setenv("SELLEROPS_PROJECT_ROOT", str(tmp_path))  # keep a local .env out of the test
+    monkeypatch.setenv("SELLEROPS_LLM_PROVIDER", "openai_compatible")
+    monkeypatch.setenv("SELLEROPS_LLM_MODEL", "claude-sonnet-5-5")  # ignored for this provider
+    settings = Settings.from_env()
+    assert settings.llm_provider == "openai_compatible"
+    assert settings.llm_base_url == "https://integrate.api.nvidia.com/v1"
+    assert settings.llm_model == ""
+    monkeypatch.setenv("LLM_BASE_URL", "http://localhost:8001/v1")
+    monkeypatch.setenv("LLM_MODEL", "meta/llama-3.3-70b-instruct")
+    settings = Settings.from_env()
+    assert settings.llm_base_url == "http://localhost:8001/v1"
+    assert settings.llm_model == "meta/llama-3.3-70b-instruct"
+    monkeypatch.setenv("SELLEROPS_LLM_PROVIDER", "gemini")
+    with pytest.raises(ValueError, match="SELLEROPS_LLM_PROVIDER"):
         Settings.from_env()
 
 
