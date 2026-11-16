@@ -5,9 +5,9 @@ from functools import partial
 from langchain_core.messages import AIMessage
 from langgraph.graph import END, START, StateGraph
 
-from sellerops.agent.nodes import call_model, router_node, tool_node
-from sellerops.agent.state import AgentState
-from sellerops.services.episode_service.episode_service import EpisodeService
+from sellerops.baseline.nodes import call_model, router_node, tool_node
+from sellerops.baseline.state import AgentState
+from sellerops.simulator.episode_service import EpisodeService
 
 
 def after_router(state: AgentState) -> str:

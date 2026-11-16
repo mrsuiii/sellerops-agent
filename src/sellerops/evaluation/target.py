@@ -10,10 +10,10 @@ import torch
 from langchain_core.messages import HumanMessage, message_to_dict
 from langsmith.run_helpers import tracing_context
 
-from ..agent.config import MODEL_CONFIGS
-from ..agent.graph import build_graph
+from ..baseline.config import MODEL_CONFIGS
+from ..baseline.graph import build_graph
 from ..schemas import MAX_AGENT_RETRIES
-from ..services.episode_service.episode_service import EpisodeService
+from ..simulator.episode_service import EpisodeService
 from .telemetry import capture_attempts
 
 
@@ -66,7 +66,7 @@ def make_target(*, action_model="sellerops-sft", router_model="qwen-base",
         # LangChain callbacks in the pinned version treat SDK mode "local" as
         # enabled and would post child traces. Explicit False keeps offline runs
         # local; the outer SDK evaluation still records the returned episode.
-        # The current ModelAdapter runs on CPU. Restore its RNG after each trial.
+        # The current LocalHFModel runs on CPU. Restore its RNG after each trial.
         # Nodes derive distinct attempt seeds from this trial seed + call index.
         with (capture_attempts() as attempts, tracing_context(enabled=trace_graph),
               torch.random.fork_rng(devices=[])):

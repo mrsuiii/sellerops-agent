@@ -11,14 +11,14 @@ from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 from langsmith import traceable
 
-from sellerops.agent.config import MODEL_CONFIGS
-from sellerops.agent.message_conversion import (
+from sellerops.baseline.config import MODEL_CONFIGS
+from sellerops.baseline.local_model import LocalHFModel
+from sellerops.baseline.message_conversion import (
     model_output_to_ai_message,
     observation_to_tool_message,
     tool_call_to_action,
 )
-from sellerops.agent.model_adapter import ModelAdapter
-from sellerops.agent.state import AgentState
+from sellerops.baseline.state import AgentState
 from sellerops.dataset import SYSTEM_PROMPT
 from sellerops.evaluation.telemetry import (
     llm_trace_inputs,
@@ -27,10 +27,10 @@ from sellerops.evaluation.telemetry import (
     record_generation,
 )
 from sellerops.schemas import MAX_AGENT_RETRIES, SchemaError, canonical_json
-from sellerops.services.episode_service.episode_service import EpisodeService
+from sellerops.simulator.episode_service import EpisodeService
 
 # Keep the router and SFT adapters loaded across sequential graph steps.
-_load_model = lru_cache(maxsize=2)(ModelAdapter)
+_load_model = lru_cache(maxsize=2)(LocalHFModel)
 
 ROUTER_PROMPT = """You are the conversational router for SellerOps.
 Return exactly one JSON object with exactly two fields: decision and text.
@@ -257,7 +257,7 @@ def _generate_text(messages: list[dict[str, str]], config: RunnableConfig) -> st
     )
     inputs = {key: value.to(adapter.model.device) for key, value in inputs.items()}
     # Seed after loading: model initialization must not consume the sampling
-    # stream. Current ModelAdapter is CPU; fork/restore only that RNG.
+    # stream. Current LocalHFModel is CPU; fork/restore only that RNG.
     rng_context = torch.random.fork_rng(devices=[]) if options.get("generation_seed") is not None else nullcontext()
     with torch.inference_mode(), rng_context:
         if options.get("generation_seed") is not None:

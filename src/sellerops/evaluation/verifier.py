@@ -5,7 +5,7 @@ from copy import deepcopy
 from typing import Any
 
 from ..schemas import FAMILIES, canonical_json, validate_action
-from ..services.episode_service.episode_service import EpisodeService
+from ..simulator.episode_service import EpisodeService
 
 
 def _report(reason: str, **details: Any) -> dict[str, Any]:

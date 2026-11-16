@@ -11,8 +11,8 @@ torch = pytest.importorskip("torch")
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 
-from sellerops.agent import nodes
-from sellerops.agent.state import AgentState
+from sellerops.baseline import nodes
+from sellerops.baseline.state import AgentState
 from sellerops.dataset import SYSTEM_PROMPT
 
 

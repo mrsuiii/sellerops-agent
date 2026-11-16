@@ -4,17 +4,17 @@
 
 ### LangChain message conversion
 
-`sellerops.agent.message_conversion` bridges decoded SellerOps model output to
+`sellerops.baseline.message_conversion` bridges decoded SellerOps model output to
 LangChain messages. It validates actions before exposing tool calls and does
 not load a model or execute tools by itself:
 
 ```python
-from sellerops.agent.message_conversion import (
+from sellerops.baseline.message_conversion import (
     model_output_to_ai_message,
     observation_to_tool_message,
     tool_call_to_action,
 )
-from sellerops.services.episode_service.episode_service import EpisodeService
+from sellerops.simulator.episode_service import EpisodeService
 
 decoded_output = '{"type":"tool_call","tool":"get_inventory","arguments":{"product_id":"P1001"}}'
 response = model_output_to_ai_message(decoded_output)
@@ -43,7 +43,7 @@ limit, and exports snapshots. With `src` on your Python import path:
 ```python
 import json
 
-from sellerops.services.episode_service.episode_service import EpisodeService
+from sellerops.simulator.episode_service import EpisodeService
 
 service = EpisodeService()
 episode = service.create_episode("demo-inventory")

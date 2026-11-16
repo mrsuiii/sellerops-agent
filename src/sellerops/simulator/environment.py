@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from .schemas import validate_action
+from ..schemas import validate_action
 
 CATALOG: tuple[dict[str, Any], ...] = (
     {"product_id": "P1001", "name": "Orbit Wireless Mouse", "category": "accessories", "brand": "Orbit", "color": "black", "price_idr": 249_000, "tags": ["wireless", "mouse", "ergonomic"]},

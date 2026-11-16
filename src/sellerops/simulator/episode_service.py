@@ -5,9 +5,9 @@ from copy import deepcopy
 from typing import Any
 from uuid import uuid4
 
-from sellerops.environment import SellerEnvironment
 from sellerops.schemas import canonical_json, validate_action, validate_tool_observation
-from sellerops.services.episode_service.episode_state import EpisodeState
+from sellerops.simulator.environment import SellerEnvironment
+from sellerops.simulator.episode_state import EpisodeState
 
 
 class EpisodeService:

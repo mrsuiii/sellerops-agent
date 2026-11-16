@@ -17,7 +17,7 @@ from langsmith.run_helpers import tracing_context
 from langsmith.schemas import Example
 from langsmith.utils import LangSmithNotFoundError
 
-from sellerops.agent import nodes
+from sellerops.baseline import nodes
 from sellerops.evaluation import dataset, evaluators, runner
 from sellerops.evaluation.metrics import pass_metrics
 from sellerops.evaluation.target import make_target

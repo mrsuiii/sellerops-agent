@@ -11,7 +11,7 @@ from uuid import uuid4
 from langsmith import Client, evaluate
 from langsmith.run_helpers import tracing_context
 
-from ..agent.config import MODEL_CONFIGS
+from ..baseline.config import MODEL_CONFIGS
 from ..schemas import MAX_AGENT_RETRIES
 from ..settings import get_settings
 from .dataset import as_examples, load_dev_records, prepare_cloud_dataset

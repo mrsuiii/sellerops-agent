@@ -1,529 +1,380 @@
 # Step-by-Step Plan — SellerOps Agent
 
-Terakhir diperbarui: 19 Agustus 2026  
-Dokumen ini adalah panduan eksekusi untuk sesi Codex berikutnya. Sasaran dan
-scope proyek berada di `../../TARGET.md`; dokumen ini mengatur **cara
-mengerjakannya secara bertahap**.
+Terakhir diperbarui: 17 November 2026
+Versi sebelumnya (19 Agustus 2026, Session 1–14 untuk jalur SFT → DPO) ada di
+git history dan di `../../archive/PLAN-sellerops-2026-08-19.md`.
 
-## Kontrak belajar untuk Codex
+Sasaran dan scope ada di `../../TARGET.md`. Konteks ringkas untuk sesi AI ada
+di `CLAUDE.md`. Dokumen ini mengatur **cara mengerjakannya bertahap**.
 
-Arahan user 13 September 2026: bagian agentic (model adapter/node, graph/state,
-routing, retry/replan, dan agent tool orchestration) dikerjakan user sendiri dari
-nol. Codex tidak membuat scaffold atau TODO untuk bagian tersebut; cukup
-menjelaskan konsep atau mereview saat diminta. Implementasi fondasi episode,
-snapshot/replay, outcome verifier, dan test pendukung telah diizinkan penuh.
+## Keputusan stack (17 November 2026)
 
-Pada setiap sesi berikutnya, Codex harus:
+Seluruh agent dan workflow dibangun di atas **LangGraph / LangChain v1**,
+tetapi **tanpa `create_agent`**: isi `create_agent` (model node ⇄ tools node,
+conditional edge, stop condition, batas langkah) disusun sendiri sebagai
+`StateGraph`. Komponen framework di luar itu dipakai bila ada (chat model,
+`@tool`, reducer `add_messages`, `RetryPolicy`, checkpointer, `interrupt`,
+`Store`, streaming, LangSmith). Middleware LangChain tidak dipakai karena
+hanya berlaku di `create_agent`; padanannya ditulis sebagai node / edge /
+field state. `ToolNode` dan source `create_agent` boleh dibaca sebagai
+referensi pembanding.
 
-1. Membaca `../../AGENTS.md`, `../../TARGET.md`, `PLAN.md`,
-   `../../environment.yml`, dan bagian terbaru `../../LEARNING_LOG.md` sebelum
-   mengubah proyek.
-2. Memeriksa file dan hasil yang sudah ada, lalu melanjutkan dari milestone
-   pertama yang belum selesai. Jangan mengulang pekerjaan yang sudah lolos
-   test.
-3. Mengerjakan hanya **satu session milestone** dalam satu waktu, kecuali user
-   secara eksplisit meminta lebih.
-4. Menjelaskan tujuan, teori minimum, bentuk input/output, dan definition of
-   done sebelum mulai menulis kode.
-5. Membuat scaffold, fixture, boilerplate, dan test yang membantu, tetapi
-   menyisakan bagian inti sebagai `TODO` atau `FILL_ME` untuk dikerjakan user.
-6. Memberikan maksimal 3–5 TODO inti per sesi agar latihan tetap fokus.
-7. Tidak langsung mengisi TODO milik user. Review percobaan user terlebih
-   dahulu, tunjukkan error atau invariant yang gagal, lalu beri hint bertahap.
-   Isi solusi lengkap hanya jika user memintanya secara eksplisit.
-8. Menjalankan test yang relevan setelah user/scaffold mengubah kode dan
-   menjelaskan hubungan failure test dengan konsep yang dipelajari.
-9. Menandai checkbox sesi selesai hanya setelah definition of done benar-benar
-   terverifikasi.
-10. Mengakhiri sesi dengan ringkasan singkat: yang selesai, bukti test/metric,
-    TODO user berikutnya, dan session milestone selanjutnya.
+| Kebutuhan | Fitur framework yang dipakai |
+| --- | --- |
+| Model Claude / NVIDIA | `init_chat_model` → `ChatAnthropic` (`langchain-anthropic`), `ChatOpenAI` dengan `base_url` (`langchain-openai`) |
+| Agent loop (tool calling) | `StateGraph` sendiri: `model` node → conditional edge → `tools` node → `model` …; state berbasis `add_messages` |
+| Tool | `@tool` / `StructuredTool` dari `langchain_core`, `model.bind_tools(...)`; eksekusi di `tools` node sendiri (`ToolNode` hanya referensi) |
+| Jawaban akhir terstruktur (`final` / `ask_user`) | Tool `final` / `ask_user` dengan skema Pydantic; edge mengakhiri graph saat tool itu dipanggil |
+| Max steps | Counter di state + cek di conditional edge; `recursion_limit` sebagai pengaman terakhir |
+| Retry API, fallback model | `retry_policy=RetryPolicy(...)` pada `add_node`, `max_retries` di chat model, `model.with_fallbacks([...])` |
+| Prompt caching | `cache_control` pada system prompt / tools lewat `ChatAnthropic`; cek `usage_metadata` |
+| Ringkasan konteks | Node `summarize` sendiri yang dipicu edge saat melewati budget token |
+| Approval manusia | `interrupt()` + `Command(resume=...)` (agent maupun workflow) |
+| Workflow pasti (approval caption, KPI) | `StateGraph` custom + checkpointer |
+| Simpan state, resume, replay | Checkpointer (`InMemorySaver` untuk test, `SqliteSaver` lokal), `get_state_history`, replay dari `checkpoint_id` |
+| Memory jangka panjang | LangGraph `Store` |
+| Tracing & eval | LangSmith (sudah dipakai di `evaluation/`) |
+| Streaming ke UI | `graph.stream(..., stream_mode="messages" / "updates")` |
 
-Codex boleh mengerjakan penuh bagian mekanis seperti konfigurasi, serialization,
-CLI plumbing, test fixtures, dan visualisasi. User sebisa mungkin mengerjakan
-bagian yang membawa learning value, khususnya:
+Parameter `ChatAnthropic` (effort, cache, refusal fallback) dan API
+LangGraph **diverifikasi ke dokumentasi versi terpasang sebelum dipakai**.
+Versi terpasang di env conda (17 Nov 2026): `langchain` 1.4.2,
+`langchain-core` 1.6.4, `langgraph` 1.2.12, `langgraph-checkpoint` 4.2.0.
 
-- schema validation dan decision rules;
-- oracle/tool-policy logic;
-- formatting dan masking dataset SFT;
-- LangGraph routing serta retry/replan conditions;
-- trajectory-to-preference conversion;
-- DPO objective dan interpretasi metric.
+Dependency baru yang dibutuhkan (dijelaskan dulu sebelum di-install, lalu
+ditambahkan ke extra `agent` di `pyproject.toml`): `langchain-anthropic`,
+`langchain-openai`, `langgraph-checkpoint-sqlite`.
 
-Jika user sedang mengejar deadline dan meminta implementasi penuh, instruksi
-terbaru user mengalahkan kontrak belajar ini.
+## Kontrak belajar untuk AI assistant (Claude, Codex, dsb.)
 
-Progress 5 Oktober 2026: atas permintaan eksplisit user, bounded schema retry
-untuk router/action dan evaluasi repeated episodes dengan pass@1/pass@k sudah
-diimplementasikan. Ini belum mencakup replan atau verifier di dalam runtime.
-Detail perilaku, perintah, dan batas penilaian berada di
-`src/sellerops/evaluation/README.md`; bukti pengujian ada di `../../LEARNING_LOG.md`.
+Arahan user (13 September 2026, diperbarui 17 November 2026): bagian agentic
+(pemilihan dan konfigurasi model, desain state, graph/node/edge, routing,
+stop condition, retry, approval, orkestrasi) **disusun user sendiri dengan
+primitif LangGraph** (`StateGraph`, node, edge), bukan `create_agent`. Assistant menjelaskan konsep
+dan fitur framework yang relevan, mereview, dan memberi hint bertahap; tidak
+menulis solusi kecuali diminta eksplisit. Jika user sedang mengejar deadline
+dan meminta implementasi penuh, instruksi terbaru user menang.
 
-## Aturan environment dan data
+Pada setiap sesi, assistant harus:
 
-- Selalu gunakan Conda environment `llm-post-training`.
-- Jangan install, remove, atau upgrade dependency sebelum menjelaskan
-  perubahan.
-- Catat dependency di `../../environment.yml` dan perubahan penting di
-  `../../LEARNING_LOG.md`.
-- Audit ulang OS, Conda environment, dan MPS sebelum memilih package/model yang
-  memengaruhi acceleration.
-- Jangan gunakan frozen test tasks untuk SFT, DPO-pair generation, prompt
-  tuning, atau failure-specific patching.
-- Simpan `task_id`, seed, split, environment version, dan provenance.
-- Jangan menyimpan hidden chain-of-thought dalam trajectory. Simpan action,
-  observation, evaluator result, dan alasan singkat yang diperlukan untuk
-  debugging.
+1. Membaca `CLAUDE.md`, `../../AGENTS.md`, `../../TARGET.md`, `PLAN.md`, dan
+   bagian terbaru `../../LEARNING_LOG.md` sebelum mengubah proyek.
+2. Melanjutkan dari session pertama yang belum selesai; jangan mengulang yang
+   sudah lolos test.
+3. Mengerjakan **satu session** dalam satu waktu kecuali diminta lebih.
+4. Menjelaskan tujuan, teori minimum, fitur framework yang dipakai (dan apa
+   yang disembunyikannya), bentuk input/output, dan definition of done sebelum
+   menulis kode, serta alasan setiap keputusan desain.
+5. Boleh membuat scaffold, fixture, boilerplate, plumbing, dan test, tetapi
+   menyisakan bagian inti sebagai `TODO` / `FILL_ME` (maksimal 3–5 per sesi).
+6. Tidak mengisi TODO user; review percobaan user, tunjukkan invariant yang
+   gagal, beri hint bertahap.
+7. Menjalankan test relevan (`make lint test`) dan menjelaskan hubungan
+   failure dengan konsep.
+8. Mencentang checkbox hanya setelah definition of done terverifikasi.
+9. Menutup sesi dengan ringkasan: yang selesai, bukti test/metric, TODO user
+   berikutnya, session selanjutnya; catat di `../../LEARNING_LOG.md`.
 
-## Pipeline final
+Bagian mekanis (konfigurasi, serialization, CLI plumbing, fixtures, Docker,
+frontend, visualisasi) boleh dikerjakan penuh oleh assistant.
 
-```text
-schemas + deterministic simulator
-    → frozen evaluation split
-    → isolated episode state + deterministic replay + verifier
-    → base-model evaluation
-    → LoRA SFT
-    → LangGraph runtime v1 dengan model SFT
-    → collect and replay trajectories
-    → failure attribution
-    → [optional] targeted preference pairs + DPO dari checkpoint SFT
-    → base vs SFT (+ DPO jika dijalankan) held-out evaluation
-```
+## Aturan environment, data, dan rahasia
 
-DPO bersifat conditional dan hanya dilakukan **setelah runtime v1 menghasilkan
-preference failures yang cukup**, bukan langsung setelah SFT. Runtime/tool bugs
-harus diperbaiki pada komponennya, bukan diubah menjadi DPO pairs.
+- Environment: Conda `llm-post-training` atau `uv sync --extra agent`
+  (`pip install -e ".[dev]"`). Jelaskan sebelum menambah/menghapus dependency.
+- Jangan pernah membaca, mencetak, atau meng-commit `.env` / API key.
+- Frozen test tasks tidak dipakai untuk training, prompt tuning, atau
+  patching spesifik-failure.
+- Simpan `task_id`, seed, split, environment version, model id, dan biaya
+  (token, latency) di setiap eval run.
+- Jangan simpan hidden chain-of-thought di trajectory; simpan action,
+  observation, hasil evaluator, dan alasan singkat.
+- Tanpa GitHub Actions CI. Nama branch bermakna (`feat/...`, `fix/...`).
+  User lebih suka perubahan langsung di lokal kecuali diminta PR.
 
-## Struktur proyek yang dituju
-
-Struktur boleh tumbuh bertahap; jangan membuat semua file kosong sekaligus.
+## Arsitektur yang dituju
 
 ```text
-src/sellerops/
-├── schemas.py
-├── environment.py
-├── services.py
-├── scenarios.py
-├── faults.py
-├── evaluation/
-│   ├── dataset.py
-│   ├── target.py
-│   ├── evaluators.py
-│   ├── metrics.py
-│   ├── answer_keys.py
-│   ├── judge.py
-│   ├── telemetry.py
-│   ├── runner.py
-│   └── verifier.py
-├── model_adapter.py
-├── graph.py
-├── memory.py
-└── trajectory.py
+                 ┌────────────── LangGraph StateGraph (disusun sendiri) ──────────────┐
+user / task ──▶  │ START → model ──(tool call)──▶ tools ──▶ model …                   │
+                 │           └──(final / ask_user / step habis / invalid)──▶ END      │
+                 │ state: messages (add_messages), steps, final_action, stop_reason   │
+                 │ RetryPolicy, with_fallbacks, node summarize, interrupt() approval  │
+                 │ checkpointer: state history, resume, replay                        │
+                 └──────────┬───────────────────────────────┬─────────────────────────┘
+                            │                               │
+                     init_chat_model                  @tool + bind_tools
+          (ChatAnthropic | ChatOpenAI + base_url)    (EpisodeService / Kala Studio API)
 
-data/
-├── environment/
-├── tasks/
-├── sft/
-├── trajectories/
-└── preferences/
-
-scripts/
-├── generate_sellerops_dataset.py
-├── evaluate_agent.py
-├── train_sft.py
-└── train_dpo.py
-
-notebooks/
-└── sft.ipynb
-
-tests/
-configs/
-results/
+Workflow pasti (approval caption, KPI) = StateGraph custom + interrupt().
+Tracing + eval = LangSmith.
 ```
 
-## Session 1 — Data contracts dan action schema
+Struktur kode tumbuh bertahap di `src/sellerops/harness/`, misalnya
+`models.py` (chat model dari settings), `state.py`, `graph.py` (node + edge
+agent), `tools/` (tool production: seller di Track C, `store.py` di B1),
+`trajectory.py`; tool dan kontrak khusus eval di `src/sellerops/evaluation/`
+(`sim_tools.py`, `terminal_tools.py`) — `harness` tidak mengimpornya; workflow di
+`src/sellerops/workflows/`. Jangan membuat semua file kosong sekaligus.
 
-Status: [x]
+Urutan track (keputusan 17 Nov 2026, mengikuti spec seller agent):
+**0 → A → C (seller) → B (buyer) → D → E**. Nama track tidak diubah agar
+rujukan lama (mis. C3, B1) tetap berlaku.
 
-Tujuan: menentukan bahasa bersama antara model, runtime, tools, dan evaluator
-sebelum menghasilkan dataset.
+`src/sellerops/baseline/` berisi pipeline LangGraph lama (router Qwen → SFT →
+tools) untuk mereproduksi baseline 0/30; jangan dikembangkan lagi.
 
-Kerjakan:
+---
 
-- [x] Definisikan schema `SellerTask`, `ToolCall`, `AskUser`, `FinalAnswer`,
-  `ToolObservation`, dan `EvaluationResult`.
-- [x] Gunakan satu tagged action format: `tool_call`, `ask_user`, atau `final`.
-- [x] Tentukan field wajib, batas retry/step, dan aturan JSON serialization.
-- [x] Buat test valid/invalid untuk setiap action type.
-- [x] Dokumentasikan tiga seller-task families dan contoh masing-masing.
+## Track 0 — Fondasi dan baseline (selesai)
 
-Bagian inti untuk user:
+Ringkasan Session 1–10 lama; detail di versi arsip dan `LEARNING_LOG.md`.
 
-- Melengkapi validator yang memastikan setiap action hanya membawa field yang
-  sesuai dengan `type`-nya.
-- Menjelaskan mengapa schema invalid harus ditolak sebelum tool dieksekusi.
+- [x] **S1 Data contracts**: `SellerTask`, `ToolCall`, `AskUser`,
+  `FinalAnswer`, tagged action format, test valid/invalid.
+- [x] **S2 Environment + tools**: catalog, inventory, discount policy,
+  `search_products`, `get_inventory`, `get_discount_policy`,
+  `calculate_offer`, structured success/error.
+- [x] **S3 Oracle + frozen split**: `sellerops-sft-v0.2` (180 train, 30 dev,
+  48 frozen test, 440 SFT records), manifest + checksum.
+- [~] **S4 Episode service**: `create_episode`, `reset`, snapshot, replay,
+  outcome verifier selesai. Sisa: integrasi `scenario_id` + seed dan test
+  isolasi dua episode.
+- [x] **S5–S7 Baseline + SFT**: full SFT Qwen2.5-0.5B-Instruct (Colab);
+  schema validity 17.9% → 100%, exact action 0% → 70.5% (dev). Hasil di
+  `results/baseline`, `results/sft`.
+- [x] **S8 (versi router)**: LangGraph router → action → tools, message
+  conversion, model aliases. Sejak 17 Nov 2026 ada di
+  `src/sellerops/baseline/`.
+- [x] **Eval harness**: LangSmith runner, answer keys, bounded schema retry,
+  pass@1/pass@k, judge Gemini opsional.
+- [x] **Kala Studio** (PR #2), **production-readiness** (PR #3, #4),
+  **config provider LLM** (PR #5, #6).
 
-Definition of done:
+Temuan kunci: e2e dev eval **0/30** (6 Oktober 2026). Router base-model
+mengeluarkan teks pada `act`, retry pindah ke `ask`; 60 router call, 0 SFT
+call, 0 tool call. Hasil di
+`results/evaluation/20261006T005916Z-ebe22193-sellerops-sft/`. Ini menjadi
+baseline yang harus dikalahkan dan bahan cerita debugging.
 
-- Semua schema tests lolos.
-- Tiga task family dan structured action dapat dijelaskan tanpa bergantung pada
-  framework/model tertentu.
+---
 
-## Session 2 — Deterministic environment dan tools
+## Track A — Agent LangGraph + model API
 
-Status: [x]
-
-Tujuan: membuat dunia kecil yang menjadi source of truth untuk SFT, replay, dan
-evaluation.
-
-Kerjakan:
-
-- [x] Buat catalog, inventory, dan discount-policy fixtures.
-- [x] Implementasikan `search_products`, `get_inventory`,
-  `get_discount_policy`, dan `calculate_offer`.
-- [x] Tambahkan structured success/error result.
-- [x] Tambahkan skenario stock habis, produk ambigu, dan invalid discount.
-- [x] Test bahwa tool tidak mengubah state secara tidak sengaja.
-
-Bagian inti untuk user:
-
-- Melengkapi policy validation pada `calculate_offer`.
-- Menentukan expected behavior untuk missing product dan unavailable stock.
-
-Definition of done:
-
-- Tools deterministic dan seluruh business-rule tests lolos.
-- Dynamic inventory/policy selalu diperoleh dari tool, bukan dihafal model.
-
-Deterministic transient fault injection dikerjakan setelah isolated episode
-lifecycle tersedia agar fault dapat dikaitkan dengan session, call number, dan
-seed secara reproducible.
-
-## Session 3 — Oracle, task generator, dan frozen split
-
-Status: [x]
-
-Tujuan: membuat seed demonstrations serta evaluation set tanpa data production.
-
-Kerjakan:
-
-- [x] Tulis 20–30 canonical scenario templates.
-- [x] Buat deterministic oracle yang menghasilkan expected action/tool
-  sequence dan verifiable constraints.
-- [x] Generate 150–250 training tasks, sekitar 30 development tasks, dan 40–50
-  frozen test tasks.
-- [x] Split berdasarkan scenario/template family, bukan random row saja.
-- [x] Simpan manifest, seed, environment version, dan checksum frozen test set.
-
-Bagian inti untuk user:
-
-- Melengkapi minimal tiga oracle decision branches.
-- Memeriksa manual sampel dari setiap split dan menemukan potensi leakage.
-
-Definition of done:
-
-- Task generation reproducible.
-- Frozen test manifest tidak digunakan oleh pipeline training.
-- Oracle trajectories lolos schema validation dan frozen split tetap
-  terisolasi.
-
-## Session 4 — Episode simulator, state isolation, dan replay
+### Session A1 — Chat model, tool, dan agent graph minimal
 
 Status: [ ]
 
-Tujuan: mengembangkan environment read-only menjadi service simulator berbasis
-episode yang dapat dipakai identik oleh base, SFT, dan agent runtime.
+Tujuan: satu task simulator berjalan end-to-end dengan Claude API lewat
+`StateGraph` agent yang disusun sendiri (model ⇄ tools).
 
 Kerjakan:
 
-- [ ] Definisikan `EpisodeState` dengan `session_id`, `scenario_id`, seed,
-  isolated inventory/policy snapshot, tool history, step count, dan terminal
-  flag.
-- [ ] Implementasikan `reset(scenario_id, seed)` tanpa shared-state leakage.
-- [x] Implementasikan `execute_tool(session_id, tool_call)` dengan structured
-  observation dan step limit.
-- [x] Implementasikan snapshot serta deterministic replay untuk tool history
-  yang sama.
-- [x] Tambahkan outcome verifier yang menerima beberapa tool sequence valid dan
-  memeriksa product, stock, discount-policy, serta final-answer constraints.
-
-Progres 13 September 2026: service mendukung `create_episode(task_id)`,
-`reset(session_id)` ke snapshot awal, snapshot JSON, dan replay tool history pada
-episode sementara. Replay melaporkan mismatch pertama dan tidak mengubah input
-atau episode asli. Outcome verifier tersedia melalui `verify_outcome(task,
-snapshot, final_action)`, memeriksa data terstruktur dan bukti tool untuk ketiga
-task family tanpa mewajibkan satu urutan oracle. Integrasi `scenario_id`/seed
-belum selesai, sehingga Session 4 tetap terbuka. Wording bebas tidak dinilai
-secara semantik; audit train/dev menemukan satu label proposal diskon negatif
-yang keliru pada oracle lama, dan dataset tidak diubah.
+- [ ] Tambah dependency `langchain-anthropic` (dan `langchain-openai` untuk
+  provider kedua) setelah dijelaskan; perbarui `pyproject.toml` dan `uv.lock`.
+- [ ] `harness/models.py`: `init_chat_model` dari `get_settings()` (provider,
+  model, effort). Verifikasi cara `ChatAnthropic` meneruskan effort dan
+  refusal fallback.
+- [ ] `evaluation/sim_tools.py`: empat tool simulator sebagai `@tool` yang memanggil
+  `EpisodeService.execute_tool` (session id lewat runtime/config, bukan
+  argumen model); deskripsi dan skema argumen diturunkan dari `schemas.py`.
+- [ ] Tool `final` / `ask_user` di `evaluation/terminal_tools.py` (skema Pydantic dari `schemas.py`, dioper ke graph sebagai `terminal_tools`) sehingga
+  hasil akhir bisa langsung masuk `verify_outcome`.
+- [ ] `harness/state.py`: state agent (messages dengan `add_messages`, jumlah
+  step, `final_action`, alasan berhenti).
+- [ ] `harness/graph.py`: node `model`, node `tools`, conditional edge
+  `should_continue`, batas langkah (bedakan dengan `recursion_limit`).
+- [ ] Prompt caching lewat `cache_control` di `ChatAnthropic`; cek
+  `usage_metadata` / `cache_read_input_tokens` di respons.
+- [ ] Test tanpa network memakai fake chat model (`langchain_core` fake model
+  yang mendukung `bind_tools`) untuk happy path dan stop condition.
+- [ ] Hapus `src/sellerops/harness/adapters/` (adapter Anthropic tulis tangan,
+  16 Nov 2026) setelah `ChatAnthropic` menggantikannya.
 
 Bagian inti untuk user:
 
-- Melengkapi state-isolation dan replay invariant.
-- Menentukan outcome constraints tanpa memaksa satu exact oracle trajectory.
+- Desain state, node `model` dan `tools`, serta conditional edge.
+- Memilih stop condition dan perilaku saat batas langkah habis atau model
+  membalas tanpa tool call.
 
 Definition of done:
 
-- Dua episode tidak saling mengubah state.
-- Scenario dan seed yang sama menghasilkan observation history yang sama.
-- Verifier menerima dua urutan tool berbeda jika outcome keduanya valid.
+- Satu happy-path dev task selesai dan lolos `verify_outcome`.
+- Agent berhenti aman pada output invalid atau batas langkah (ada test-nya).
 
-## Session 5 — Base-model evaluation dan model selection
+### Session A2 — Robustness: error, retry, timeout
 
 Status: [ ]
 
-Tujuan: memperoleh baseline sebelum SFT.
+- [ ] Tool error dikembalikan sebagai `ToolMessage(status="error")`
+  terstruktur dari node `tools`, bukan exception.
+- [ ] Retry API (rate limit, overload) lewat `RetryPolicy` pada node `model`
+  dan retry bawaan client, terpisah dari retry perilaku model;
+  `with_fallbacks` untuk model cadangan.
+- [ ] Timeout per call dan per episode; budget token.
+- [ ] Test adversarial: tool tidak ada, argumen invalid, stok habis, diskon
+  melewati batas.
 
-Kerjakan:
+Bagian inti untuk user: memetakan jenis error ke retry / lanjut / berhenti dan
+menaruhnya di node, edge, atau `RetryPolicy` yang tepat.
 
-- [ ] Audit kembali MPS/memory dan dependency environment.
-- [ ] Pilih satu instruct model open-weight sekitar 0.5B–1.5B.
-- [ ] Buat `ModelAdapter` yang menghasilkan tagged structured action.
-- [ ] Jalankan base model pada development dan frozen baseline tasks.
-- [ ] Ukur schema validity, tool-choice accuracy, dan exact argument accuracy.
+DoD: setiap jenis error punya perilaku eksplisit dan test.
 
-Bagian inti untuk user:
-
-- Melengkapi parser/validator output model.
-- Menganalisis minimal lima base-model failures.
-
-Definition of done:
-
-- Baseline tersimpan dengan model revision, config, seed, dan metrics.
-- Frozen baseline tidak ditimpa oleh eksperimen berikutnya.
-
-## Session 6 — SFT dataset dan preprocessing
+### Session A3 — Eval agent API vs baseline
 
 Status: [ ]
 
-Tujuan: mengubah oracle demonstrations menjadi chat/tool-use training records.
+- [ ] Target eval baru di `evaluation/` yang menjalankan agent A1 per task
+  (episode terisolasi, `thread_id` per episode); verifier yang sama, k ≥ 3
+  repetisi; laporkan pass@1 dan pass^k per family.
+- [ ] Catat token, biaya, latency p50/p95, rata-rata steps (dari LangSmith /
+  `usage_metadata`).
+- [ ] Error analysis minimal 5 kegagalan (ala Hamel Husain) dari trace
+  LangSmith; failure penting jadi regression test.
+- [ ] Opsional: model NVIDIA via `ChatOpenAI` + `base_url` sebagai pembanding
+  ketiga.
 
-Kerjakan:
+Bagian inti untuk user: membaca trajectory gagal dan menulis RCA.
 
-- [x] Serialisasikan task, assistant action, tool observation, dan final answer
-  ke chat records model-independent; model-specific chat template diterapkan
-  setelah model dipilih.
-- [x] Target sekitar 400–700 assistant decision points dari training tasks.
-- [ ] Mask loss agar hanya token assistant target yang dilatih.
-- [x] Tambahkan schema/provenance validation untuk setiap record.
-- [ ] Visual-inspect tokenization dan label mask pada beberapa contoh.
+DoD: tabel baseline 0.5B vs agent API tersimpan di `results/evaluation/`
+dengan config dan model id; frozen test belum disentuh.
 
-Bagian inti untuk user:
-
-- Melengkapi fungsi formatting satu trajectory.
-- Melengkapi atau memverifikasi assistant-only label masking.
-
-Definition of done:
-
-- Tidak ada frozen test task di SFT records.
-- Contoh yang telah di-decode kembali memiliki prompt dan target yang benar.
-
-## Session 7 — LoRA SFT smoke test dan training
+### Session A4 — Context, memory, trajectory replay
 
 Status: [ ]
 
-Tujuan: menghasilkan adapter SFT pertama secara reproducible.
+- [ ] Context budget dengan node `summarize` sendiri (dipicu edge saat token
+  melewati budget; pesan lama diganti lewat `RemoveMessage`).
+- [ ] Checkpointer `SqliteSaver`; trajectory diambil dari `get_state_history`
+  + trace LangSmith, diekspor ke JSONL (task, model, messages, tool calls,
+  observations, hasil evaluator, latency, usage).
+- [ ] Replay / time travel dari `checkpoint_id` pada environment version yang
+  sama.
+- [ ] Opsional: memory preferensi lewat LangGraph `Store`, di-load hanya saat
+  relevan.
 
-Kerjakan:
+DoD: satu failed trajectory bisa direproduksi; satu task multi-turn memakai
+ringkasan dengan benar.
 
-- [ ] Buat config kecil untuk smoke test.
-- [ ] Verifikasi trainable parameter count dan LoRA target modules.
-- [ ] Jalankan smoke test pada beberapa batch sebelum full small run.
-- [ ] Log train/eval loss, schema validity, dan tool-choice accuracy.
-- [ ] Bandingkan base vs SFT pada frozen evaluation.
+---
 
-Bagian inti untuk user:
+## Track C — Seller agent (dikerjakan sebelum Track B)
 
-- Membaca satu batch, loss, dan gradient sanity check.
-- Menjelaskan apakah improvement berasal dari format adherence, decision
-  quality, atau keduanya.
+Spec: https://claude.ai/artifact/Wond21GKwf7ui7xdgcSHSa
 
-Definition of done:
-
-- Adapter, config, dataset version, dan result table tersimpan.
-- SFT dinilai dengan task metrics, bukan training loss saja.
-
-## Session 8 — LangGraph state dan graph skeleton
+### Session C1 — Data order sintetis
 
 Status: [ ]
 
-Tujuan: membangun runtime yang dimiliki sendiri, bukan sekadar API wrapper.
+- [ ] Generator order, stok, dan review sintetis yang deterministik (seed)
+  untuk katalog Kala Studio, dengan pola yang bisa diuji (produk laris,
+  produk lambat, stok menipis, review negatif berulang).
+- [ ] Endpoint/read model untuk penjualan dan stok.
 
-Kerjakan:
+DoD: dataset tersimpan dengan seed dan manifest; ada test pola.
 
-- [ ] Definisikan `AgentState` dengan goal, plan, observations, tool calls,
-  evaluation, retry count, dan final answer.
-- [ ] Buat node `load_context`, `plan`, `execute_tool`, `evaluate`, dan `final`.
-- [ ] Buat conditional edges untuk continue, retry, replan, dan stop.
-- [ ] Gunakan SFT adapter dari Session 7 sebagai policy model awal.
-- [ ] Tambahkan maximum step dan retry protection.
-
-Bagian inti untuk user:
-
-- Melengkapi routing function berdasarkan state/evaluation.
-- Menjelaskan kapan retry berbeda dari replan.
-
-Definition of done:
-
-- Satu happy-path task berjalan end-to-end.
-- Graph berhenti dengan aman pada invalid output atau repeated failure.
-
-## Session 9 — Evaluator dan self-correction
+### Session C2 — Analisis penjualan (agent)
 
 Status: [ ]
 
-Tujuan: menambahkan verifikasi serta perbaikan dalam satu episode.
+- [ ] Tool baca: ringkasan penjualan, top/lambat, stok + saran restock,
+  insight review; seller agent = graph agent Track A.
+- [ ] Task eval dengan jawaban yang bisa diverifikasi dari data sintetis.
 
-Kerjakan:
+DoD: seller agent menjawab pertanyaan analisis dan lolos verifier.
 
-- [ ] Implementasikan deterministic verifier untuk schema, product ID, stok,
-  diskon, dan tool arguments.
-- [ ] Evaluator mengembalikan `pass`, `retry`, atau `replan` beserta reason
-  code.
-- [ ] Tambahkan failure observations kembali ke state tanpa hidden
-  chain-of-thought.
-- [ ] Test loop termination dan policy-violation prevention.
-
-Bagian inti untuk user:
-
-- Melengkapi mapping failure reason ke retry/replan.
-- Menulis minimal dua adversarial/edge-case tests.
-
-Definition of done:
-
-- Agent memperbaiki minimal satu recoverable failure.
-- Unrecoverable failure berhenti secara eksplisit, bukan loop tanpa akhir.
-
-## Session 10 — Context, memory, trajectory, dan replay
+### Session C3 — Perbaikan caption dengan approval (workflow)
 
 Status: [ ]
 
-Tujuan: membuat multi-turn runtime dapat di-debug dan direplay.
+- [ ] `StateGraph` custom: node LLM mengusulkan caption → `interrupt()` untuk
+  approve/reject → `Command(resume=...)` → node backend PATCH → audit log →
+  revert. Checkpointer wajib agar approval bisa ditunda.
+- [ ] LLM hanya mengisi node usulan; alur, approval, dan penulisan data
+  dikendalikan graph.
 
-Kerjakan:
+Bagian inti untuk user: desain state, node/edge approval, dan audit log.
 
-- [ ] Tambahkan short-term context budget dan summary sederhana.
-- [ ] Simpan structured seller preferences di SQLite.
-- [ ] Implementasikan retrieve-then-load berdasarkan task.
-- [ ] Log trajectory JSONL dengan `task_id`, seed, model revision, action,
-  observation, evaluator result, latency, dan steps.
-- [ ] Replay trajectory pada environment version yang sama.
+DoD: caption tidak pernah berubah tanpa approval; revert terbukti lewat test.
 
-Bagian inti untuk user:
-
-- Melengkapi aturan memory relevance atau compaction.
-- Memverifikasi bahwa replay menghasilkan environment observations yang sama.
-
-Definition of done:
-
-- Satu multi-turn task menggunakan memory yang relevan.
-- Satu failed trajectory berhasil direproduksi.
-
-## Session 11 — Trajectory collection dan failure analysis
+### Session C4 — KPI dan laporan mingguan (workflow)
 
 Status: [ ]
 
-Tujuan: menghasilkan data nyata dari perilaku agent SFT.
+- [ ] `StateGraph` deterministik: node hitung KPI → node narasi LLM → node
+  cek angka narasi terhadap KPI.
 
-Kerjakan:
+DoD: laporan mingguan deterministik dari data sintetis + narasi LLM yang
+diperiksa terhadap angka.
 
-- [ ] Jalankan 3–4 rollouts per development task dengan seed tercatat.
-- [ ] Kelompokkan failure: planner, tool choice, arguments, context, policy,
-  final answer, atau runtime.
-- [ ] Pisahkan model failure dari environment/runtime failure.
-- [ ] Buat RCA report dan tambahkan failure penting sebagai regression task.
+---
 
-Bagian inti untuk user:
+## Track B — Buyer agent di atas Kala Studio (setelah Track C)
 
-- Mengaudit failure clusters dan memperbaiki attribution yang salah.
-- Memilih failure yang layak menjadi DPO pair versus runtime fix.
-
-Definition of done:
-
-- Setiap candidate DPO example memiliki traceable source trajectory.
-- Runtime/tool bugs tidak salah dimasukkan sebagai preference-model problem.
-
-## Session 12 — Conditional preference-pair builder
+### Session B1 — Tool Kala Studio
 
 Status: [ ]
 
-Tujuan: hanya jika failure audit mendukung, membentuk DPO data yang bersih dari
-first divergence point.
+- [ ] Tool `@tool` `search_products`, `recommend_products` (BM25
+  `POST /api/recommend`), `get_product`, `add_to_cart` yang memanggil store
+  API (atau service layer-nya langsung untuk test).
+- [ ] Deskripsi tool dan error message dirancang untuk model (lihat
+  *Writing effective tools for agents*).
+- [ ] Hanya data publik; tidak ada aksi harga atau negosiasi.
 
-Kerjakan:
+DoD: tiap tool punya test sukses dan gagal.
 
-- [ ] Gunakan prompt/history yang identik untuk `chosen` dan `rejected`.
-- [ ] Ambil `rejected` dari realistic SFT-agent failure.
-- [ ] Ambil `chosen` dari successful rollout, verifier/human repair, atau
-  audited oracle output.
-- [ ] Lanjutkan hanya jika tersedia pasangan berkualitas yang cukup; target
-  100–250 adalah panduan, bukan kewajiban.
-- [ ] Audit length bias, duplicate pairs, ambiguous preference, dan leakage.
-
-Bagian inti untuk user:
-
-- Melengkapi first-divergence extraction.
-- Mengaudit manual minimal 20–30% preference pairs.
-
-Definition of done:
-
-- Pair yang keduanya salah atau tidak jelas sudah dibuang.
-- Frozen test tasks tidak ada dalam preference dataset.
-
-## Session 13 — Conditional DPO objective dan training
+### Session B2 — Buyer agent + task eval
 
 Status: [ ]
 
-Tujuan: jika Session 12 menghasilkan dataset yang layak, melatih preference
-behavior dari checkpoint SFT.
+- [ ] Buyer agent = graph agent Track A dengan tool B1.
+- [ ] 20–30 task belanja (constraint ukuran, budget IDR, kategori, produk
+  tidak ada, permintaan ambigu → harus bertanya) dengan verifier
+  programmatic.
+- [ ] Eval pass@1 / pass^k + biaya.
 
-Kerjakan:
+DoD: demo satu percakapan belanja sampai item masuk cart; hasil eval
+tersimpan.
 
-- [ ] Implementasikan DPO loss pada dummy tensors dan unit test-nya.
-- [ ] Jelaskan policy/reference log-ratio dan peran beta.
-- [ ] Jalankan DPO smoke test dari SFT adapter/checkpoint.
-- [ ] Jalankan small DPO training dengan config reproducible.
-- [ ] Periksa chosen/rejected margin, loss, schema validity, dan tool behavior.
-
-Bagian inti untuk user:
-
-- Melengkapi perhitungan DPO logits/loss pada latihan kecil.
-- Menginterpretasikan minimal satu contoh ketika loss membaik tetapi behavior
-  tidak membaik.
-
-Definition of done:
-
-- DPO adapter dan seluruh metadata tersimpan.
-- Tidak ada klaim improvement sebelum frozen replay evaluation.
-
-## Session 14 — Final replay, report, dan application package
+### Session B3 — Chat UI di toko
 
 Status: [ ]
 
-Tujuan: menghasilkan bukti akhir yang dapat ditunjukkan saat melamar.
+- [ ] Endpoint chat dengan streaming `graph.stream(stream_mode="messages")`
+  dan checkpointer per percakapan (`thread_id`); widget chat di frontend
+  Kala Studio.
+- [ ] Tampilkan tool call yang terjadi (transparansi untuk demo).
 
-Kerjakan:
+DoD: `make store` lalu bisa belanja lewat chat di browser.
 
-- [ ] Replay frozen tasks dengan base dan SFT, serta DPO jika tersedia, pada
-  graph yang sama.
-- [ ] Bandingkan task success, valid-tool-call rate, policy violations, schema
-  validity, steps, retry count, dan latency.
-- [ ] Analisis minimal lima failure cases dan limitations.
-- [ ] Tambahkan diagram, setup, demo command, evaluation command, serta result
-  table ke README.
-- [ ] Siapkan penjelasan proyek versi 3 menit dan 15 menit.
-- [ ] Isi resume bullet hanya dengan angka yang telah diverifikasi.
+---
 
-Definition of done:
+## Track D — Lanjutan (setelah A, C, dan B)
 
-- Repository dapat dijalankan ulang dari environment/config yang tercatat.
-- Candidate hanya dipromosikan jika melewati regression dan safety gates.
-- README membedakan fitur yang sudah selesai dari future work.
+- [ ] **Analyst agent** dengan `run_code` (python/sql/bash) ter-sandbox di
+  Docker, plus dashboard.
+- [ ] **RAG katalog produk** / agent umum dengan retriever/vector store
+  LangChain. Plan: https://claude.ai/artifact/77zTgEAD9uVorNcST3zVDj
+- [ ] **Jalur post-training opsional**: perbaiki router 0.5B (constrained
+  decoding / structured output) atau cari use case sendiri untuk 0.5B;
+  DPO hanya jika failure audit menghasilkan preference pairs yang layak
+  (lihat Session 11–13 di versi arsip).
+
+## Track E — Report dan paket aplikasi
+
+- [ ] README: diagram arsitektur, setup, satu perintah demo, satu perintah
+  eval, tabel hasil.
+- [ ] Analisis minimal lima failure case dan limitations.
+- [ ] Penjelasan proyek versi 3 menit dan 15 menit.
+- [ ] Resume bullet hanya dengan angka terverifikasi.
+
+DoD: repo bisa dijalankan ulang dari config yang tercatat; README memisahkan
+fitur selesai dan future work.
 
 ## Current next session
 
-Mulai dari **Session 4 — Episode simulator, state isolation, dan replay**.
-
-Codex pada sesi berikutnya jangan langsung membuat model adapter, SFT pipeline,
-LangGraph runtime, dan DPO trainer sekaligus. Audit environment yang sudah ada,
-buat scaffold serta tests untuk isolated episode lifecycle, lalu berikan 3–5
-TODO inti kepada user dan berhenti pada batas Session 4.
+Mulai dari **Session A1 — Chat model, tool, dan agent graph minimal**.
+Assistant menjelaskan dependency baru, menyiapkan `tools/`, fake chat model,
+dan test; user menyusun state, node, edge, dan stop condition. Sisa S4
+(scenario_id + seed) boleh dikerjakan sambil jalan bila dibutuhkan eval A3.

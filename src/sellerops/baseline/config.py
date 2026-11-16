@@ -4,7 +4,7 @@ from ..settings import get_settings
 
 SFT_RUN = get_settings().results_dir / "sft" / "20260917-234821-full-sft"
 
-# Values are keyword arguments for ModelAdapter. Add new model aliases here.
+# Values are keyword arguments for LocalHFModel. Add new model aliases here.
 MODEL_CONFIGS = {
     "qwen-base": {
         "local": False,

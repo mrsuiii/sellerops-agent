@@ -4,8 +4,8 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
-from sellerops.environment import SellerEnvironment
 from sellerops.schemas import MAX_AGENT_STEPS
+from sellerops.simulator.environment import SellerEnvironment
 
 
 @dataclass

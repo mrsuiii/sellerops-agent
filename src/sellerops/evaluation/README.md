@@ -258,7 +258,7 @@ feedback yang sama. Default tetap satu repetition, k=1, dan greedy (`temperature
 Greedy pada simulator tetap biasanya mengulang hasil yang sama; gunakan sampling
 (`temperature>0`, top_p=1, top_k=0) untuk mengukur variasi percobaan. Seed generation
 diturunkan dari base seed, task ID, trial index, lalu model-call index; disimpan
-pada output/attempt. Implementasi seed mengikuti ModelAdapter CPU saat ini, dan
+pada output/attempt. Implementasi seed mengikuti LocalHFModel CPU saat ini, dan
 memulihkan RNG setelah episode. Reproducibility membutuhkan model/software sama.
 
 Untuk setiap task dengan n episode dan c yang lolos verifier:

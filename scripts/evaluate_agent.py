@@ -5,7 +5,7 @@ import argparse
 import json
 from pathlib import Path
 
-from sellerops.agent.config import MODEL_CONFIGS
+from sellerops.baseline.config import MODEL_CONFIGS
 from sellerops.evaluation.judge import DEFAULT_MODEL
 from sellerops.evaluation.runner import run_evaluation
 from sellerops.logging_config import configure_logging

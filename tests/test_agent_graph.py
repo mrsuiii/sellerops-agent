@@ -9,9 +9,9 @@ pytest.importorskip("torch")
 
 from langchain_core.messages import HumanMessage, ToolMessage
 
-from sellerops.agent import nodes
-from sellerops.agent.graph import build_graph
-from sellerops.services.episode_service.episode_service import EpisodeService
+from sellerops.baseline import nodes
+from sellerops.baseline.graph import build_graph
+from sellerops.simulator.episode_service import EpisodeService
 
 CONFIG = {"configurable": {
     "router_model_name": "qwen-base", "action_model_name": "sellerops-sft",

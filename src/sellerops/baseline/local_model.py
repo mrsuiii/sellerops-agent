@@ -3,7 +3,7 @@ from pathlib import Path
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
-class ModelAdapter:
+class LocalHFModel:
     def __init__(
         self,
         local: bool,

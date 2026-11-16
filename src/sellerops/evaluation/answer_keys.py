@@ -3,9 +3,9 @@
 import json
 from hashlib import sha256
 
-from ..environment import environment_fixtures
 from ..schemas import canonical_json, validate_action
-from ..services.episode_service.episode_service import EpisodeService
+from ..simulator.environment import environment_fixtures
+from ..simulator.episode_service import EpisodeService
 from .verifier import verify_outcome
 
 

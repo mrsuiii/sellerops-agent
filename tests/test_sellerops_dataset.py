@@ -12,7 +12,6 @@ from sellerops.dataset import (
     generate_sft_records,
     generate_tasks,
 )
-from sellerops.environment import SellerEnvironment
 from sellerops.schemas import (
     MAX_AGENT_RETRIES,
     MAX_AGENT_STEPS,
@@ -22,6 +21,7 @@ from sellerops.schemas import (
     validate_sft_record,
     validate_task,
 )
+from sellerops.simulator.environment import SellerEnvironment
 
 
 def test_action_schema_rejects_cross_type_and_unsafe_shape() -> None:

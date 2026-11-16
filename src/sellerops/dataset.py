@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .environment import CATALOG, INVENTORY, SellerEnvironment, environment_fixtures
 from .schemas import canonical_json, validate_sft_record, validate_task
+from .simulator.environment import CATALOG, INVENTORY, SellerEnvironment, environment_fixtures
 
 DATASET_VERSION = "sellerops-sft-v0.2"
 ENVIRONMENT_VERSION = "sellerops-sim-v0.1"

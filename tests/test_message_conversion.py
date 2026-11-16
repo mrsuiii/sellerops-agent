@@ -5,14 +5,14 @@ import json
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
-from sellerops.agent.message_conversion import (
+from sellerops.baseline.message_conversion import (
     action_to_ai_message,
     model_output_to_ai_message,
     observation_to_tool_message,
     tool_call_to_action,
 )
 from sellerops.schemas import SchemaError
-from sellerops.services.episode_service.episode_service import EpisodeService
+from sellerops.simulator.episode_service import EpisodeService
 
 
 def inventory_action():

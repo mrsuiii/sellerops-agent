@@ -16,9 +16,10 @@ by an API-hosted model. The fine-tuned Qwen2.5-0.5B remains as a baseline.
 
 ```text
 src/sellerops/
-├── schemas.py, environment.py, dataset.py   # action schemas, simulator, task generator (stdlib only)
-├── services/episode_service/                # isolated episodes, snapshot + replay
-├── agent/                                   # LangGraph router → action → tools runtime
+├── schemas.py, dataset.py                   # action schemas, task generator (stdlib only)
+├── simulator/                               # SellerEnvironment + isolated episodes, snapshot, replay (eval only)
+├── harness/                                 # LangGraph agent graph (model ⇄ tools, Claude API)
+├── baseline/                                # legacy LangGraph router → action → tools (Qwen 0.5B baseline)
 ├── evaluation/                              # verifier, LangSmith runner, metrics, judge
 └── store/                                   # Kala Studio FastAPI backend + BM25 recommender
 web/          # plain HTML/CSS/JS storefront served by the store API

@@ -3,21 +3,21 @@
 Ini potongan pembelajaran yang bisa dieksekusi, belum runtime final. Dua model
 punya tugas berbeda: `qwen-base` memutuskan delegasi atau merespons percakapan,
 sedangkan `sellerops-sft` memilih action SellerOps. Nama tersebut adalah alias
-di `src/sellerops/agent/config.py`.
+di `src/sellerops/baseline/config.py`.
 
 ## Urutan membaca kode
 
-1. `agent/state.py`: messages digabung menggunakan reducer; field lain diganti
+1. `baseline/state.py`: messages digabung menggunakan reducer; field lain diganti
    oleh update terbaru. `route`, `status`, dan `response` boleh belum ada pada
    input awal karena node yang akan mengisinya.
-2. `agent/nodes.py`, `router_node`: model menghasilkan JSON `decision/text`.
+2. `baseline/nodes.py`, `router_node`: model menghasilkan JSON `decision/text`.
    `act` meneruskan pekerjaan tanpa menambahkan JSON routing ke history.
    `reply` menambahkan jawaban dan `ask` menambahkan pertanyaan.
 3. `call_model`: SFT membaca percakapan asli dan observation, bukan instruksi
    subtask baru buatan router. Action JSON tetap mengikuti format latihan.
 4. `tool_node`: mengambil tepat satu tool call, mengonversinya, mengeksekusi
    lewat EpisodeService, lalu mengembalikan ToolMessage dengan ID yang cocok.
-5. `agent/graph.py`: conditional edges memilih node berikutnya. `partial`
+5. `baseline/graph.py`: conditional edges memilih node berikutnya. `partial`
    mengikat service ke tool_node; LangGraph cukup memasukkan state.
 6. `_model_step`: satu attempt model, pencatatan counter, dan keputusan retry
    schema. Edge `retry` kembali ke node yang sama; output invalid tidak ke tool.
@@ -48,8 +48,8 @@ pada Python import path:
 
 ```python
 from langchain_core.messages import HumanMessage
-from sellerops.agent.graph import build_graph
-from sellerops.services.episode_service.episode_service import EpisodeService
+from sellerops.baseline.graph import build_graph
+from sellerops.simulator.episode_service import EpisodeService
 
 service = EpisodeService()
 episode = service.create_episode("belajar-router")

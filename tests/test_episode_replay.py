@@ -6,9 +6,9 @@ from typing import Any
 
 import pytest
 
-from sellerops.environment import SellerEnvironment
-from sellerops.services.episode_service.episode_service import EpisodeService
-from sellerops.services.episode_service.episode_state import EpisodeState
+from sellerops.simulator.environment import SellerEnvironment
+from sellerops.simulator.episode_service import EpisodeService
+from sellerops.simulator.episode_state import EpisodeState
 
 
 @pytest.fixture
