@@ -25,6 +25,7 @@ def test_defaults_point_at_repository():
     assert settings.catalog_path.is_file()
     assert settings.log_level == "INFO" and settings.log_format == "text"
     assert settings.cors_origins == ()
+    assert settings.llm_model == "claude-opus-5-5" and settings.llm_effort == "medium"
 
 
 def test_env_overrides_resolve_relative_to_root(monkeypatch, tmp_path):
@@ -39,6 +40,16 @@ def test_env_overrides_resolve_relative_to_root(monkeypatch, tmp_path):
     assert settings.catalog_path == tmp_path.resolve() / "custom" / "catalog.json"
     assert settings.log_level == "DEBUG" and settings.log_format == "json"
     assert settings.cors_origins == ("http://a.test", "http://b.test")
+
+
+def test_llm_overrides(monkeypatch):
+    monkeypatch.setenv("SELLEROPS_LLM_MODEL", " claude-sonnet-5-5 ")
+    monkeypatch.setenv("SELLEROPS_LLM_EFFORT", "HIGH")
+    settings = Settings.from_env()
+    assert settings.llm_model == "claude-sonnet-5-5" and settings.llm_effort == "high"
+    monkeypatch.setenv("SELLEROPS_LLM_EFFORT", "turbo")
+    with pytest.raises(ValueError, match="SELLEROPS_LLM_EFFORT"):
+        Settings.from_env()
 
 
 def test_invalid_choice_fails_fast(monkeypatch):

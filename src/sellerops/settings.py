@@ -2,7 +2,10 @@
 
 ``.env`` is loaded with python-dotenv; real environment variables win. All variables use the
 ``SELLEROPS_`` prefix; third-party keys (``LANGSMITH_API_KEY``,
-``GEMINI_API_KEY``) keep their own names and are read by their libraries.
+``GEMINI_API_KEY``, ``ANTHROPIC_API_KEY``) keep their own names and are read by
+their libraries, so they are never stored on ``Settings``. Because ``.env`` is
+loaded into ``os.environ``, ``anthropic.Anthropic()`` picks up a key from ``.env``
+once ``get_settings()`` has run.
 
     from sellerops.settings import get_settings
     settings = get_settings()
@@ -27,6 +30,8 @@ _SOURCE_ROOT = Path(__file__).resolve().parents[2]
 
 _LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _LOG_FORMATS = {"text", "json"}
+_LLM_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+DEFAULT_LLM_MODEL = "claude-opus-5-5"
 
 
 def _env_path(name: str, default: Path, root: Path) -> Path:
@@ -59,6 +64,8 @@ class Settings:
     log_level: str
     log_format: str
     cors_origins: tuple[str, ...]
+    llm_model: str
+    llm_effort: str
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -74,6 +81,8 @@ class Settings:
             log_level=_env_choice("SELLEROPS_LOG_LEVEL", "INFO", _LOG_LEVELS, upper=True),
             log_format=_env_choice("SELLEROPS_LOG_FORMAT", "text", _LOG_FORMATS),
             cors_origins=_env_list("SELLEROPS_CORS_ORIGINS"),
+            llm_model=os.environ.get("SELLEROPS_LLM_MODEL", "").strip() or DEFAULT_LLM_MODEL,
+            llm_effort=_env_choice("SELLEROPS_LLM_EFFORT", "medium", _LLM_EFFORTS),
         )
 
 

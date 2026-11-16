@@ -84,7 +84,8 @@ Secrets and settings come from environment variables; see
 | --- | --- |
 | `LANGSMITH_API_KEY` | `evaluate_agent.py --cloud` |
 | `GEMINI_API_KEY` | optional Gemini prose judge |
-| `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | planned hosted-model adapter |
+| `ANTHROPIC_API_KEY` | Claude API, read by the `anthropic` SDK (hosted-model adapter, not wired yet) |
+| `SELLEROPS_LLM_MODEL`, `SELLEROPS_LLM_EFFORT` | Claude model id (default `claude-opus-5-5`) and effort (default `medium`) |
 | `SELLEROPS_PROJECT_ROOT` | repo root (needed for non-editable installs, e.g. Docker) |
 | `SELLEROPS_DATA_DIR`, `SELLEROPS_WEB_DIR`, `SELLEROPS_RESULTS_DIR`, `SELLEROPS_CATALOG_PATH` | override data locations |
 | `SELLEROPS_LOG_LEVEL`, `SELLEROPS_LOG_FORMAT` | `INFO`/`DEBUG`/…, `text` or `json` |
