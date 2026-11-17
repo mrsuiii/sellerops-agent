@@ -1,0 +1,50 @@
+{
+ "trials": 1,
+ "tasks": 1,
+ "k": 1,
+ "errors": 0,
+ "overall": {
+  "pass@1": 0.0,
+  "pass^1": 0.0
+ },
+ "by_family": {
+  "caption": {
+   "tasks": 1,
+   "pass@1": 0.0,
+   "pass^1": 0.0
+  }
+ },
+ "failed_checks": {
+  "caption_flow": 1
+ },
+ "stop_reasons": {
+  "final": 1
+ },
+ "latency_s": {
+  "p50": 8.463,
+  "p95": 8.463
+ },
+ "avg_tool_calls": 3,
+ "avg_agent_turns": 1,
+ "asked_when_needed": [
+  0,
+  1
+ ],
+ "usage_total": {
+  "input_tokens": 16123,
+  "output_tokens": 1338,
+  "cache_read": 10913,
+  "cache_creation": 0
+ },
+ "usage_per_trial": {
+  "input_tokens": 16123.0,
+  "output_tokens": 1338.0,
+  "cache_read": 10913.0,
+  "cache_creation": 0.0
+ },
+ "judge": {
+  "scored": 0,
+  "pass": 0,
+  "errors": 0
+ }
+}

@@ -30,7 +30,8 @@ from sellerops.evaluation.judge import MessageJudge, nvidia_judge_model  # noqa:
 from sellerops.evaluation.seller_eval import run_eval, summarize, summary_markdown  # noqa: E402
 from sellerops.evaluation.seller_tasks import load_tasks  # noqa: E402
 from sellerops.evaluation.user_sim import LLMUser, ScriptedUser  # noqa: E402
-from sellerops.harness.models import get_chat_model  # noqa: E402
+from sellerops.harness.models import get_chat_model, get_fallback_models  # noqa: E402
+from sellerops.harness.trajectory import open_sqlite_checkpointer  # noqa: E402
 from sellerops.schemas import MAX_AGENT_STEPS  # noqa: E402
 from sellerops.settings import get_settings  # noqa: E402
 from sellerops.simulator.store import default_sim_dir  # noqa: E402
@@ -51,6 +52,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--judge-model", default=None, help="default: SELLEROPS_JUDGE_MODEL / LLM_MODEL")
     parser.add_argument("--user-effort", default="low", help="effort for the LLM user simulator")
     parser.add_argument("--tag", action="append", default=[], help="extra LangSmith tag (repeatable)")
+    parser.add_argument("--save-threads", action="store_true",
+                        help="keep every thread in <out>/threads.sqlite (for scripts/replay_eval_thread.py)")
+    parser.add_argument("--max-turn-tokens", type=int, default=None, help="per-turn token budget")
+    parser.add_argument("--max-turn-seconds", type=float, default=None, help="per-turn time budget")
+    parser.add_argument("--max-context-tokens", type=int, default=None,
+                        help="summarize older messages when the prompt exceeds this")
     parser.add_argument("--out", type=Path, default=None, help="default: results/evaluation/<run_id>")
     return parser.parse_args()
 
@@ -81,8 +88,10 @@ def main() -> int:
         sys.exit("no task matches the filters")
 
     agent_model = get_chat_model(settings)
+    fallback_models = get_fallback_models(settings)  # SELLEROPS_LLM_FALLBACK_MODELS
     if args.user == "llm":
-        user_model = get_chat_model(settings, output_config={"effort": args.user_effort}, max_tokens=4000)
+        user_kwargs = {"output_config": {"effort": args.user_effort}} if settings.llm_provider == "anthropic" else {}
+        user_model = get_chat_model(settings, max_tokens=4000, **user_kwargs)
 
         def make_user():
             return LLMUser(user_model)
@@ -98,7 +107,11 @@ def main() -> int:
         "run_id": run_id, "split": args.split, "k": args.k, "user": args.user,
         "user_effort": args.user_effort if args.user == "llm" else None,
         "tasks": [t["task_id"] for t in tasks], "max_turns": args.max_turns, "max_steps": args.max_steps,
-        "agent_model": settings.llm_model, "agent_effort": settings.llm_effort,
+        "agent_provider": settings.llm_provider, "agent_model": settings.llm_model,
+        "agent_effort": settings.llm_effort if settings.llm_provider == "anthropic" else None,
+        "fallback_models": list(settings.llm_fallback_models),
+        "max_turn_tokens": args.max_turn_tokens, "max_turn_seconds": args.max_turn_seconds,
+        "max_context_tokens": args.max_context_tokens, "save_threads": args.save_threads,
         "judge_model": judge.metadata["model"] if judge else None,
         "judge_rubric": judge.metadata["rubric_version"] if judge else None,
         "data_version": tasks[0].get("data_version"),
@@ -114,7 +127,12 @@ def main() -> int:
         print(f"[{done}/{total}] {verdict:5} {record['task_id']} t{record['trial']} "
               f"({record.get('latency_s')}s) {why}", flush=True)
 
+    out.mkdir(parents=True, exist_ok=True)
+    checkpointer = open_sqlite_checkpointer(out / "threads.sqlite") if args.save_threads else None
+    graph_options = {"fallback_models": fallback_models, "max_turn_tokens": args.max_turn_tokens,
+                     "max_turn_seconds": args.max_turn_seconds, "max_context_tokens": args.max_context_tokens}
     records = run_eval(tasks, k=args.k, concurrency=args.concurrency, progress=progress,
+                       checkpointer=checkpointer, graph_options=graph_options,
                        agent_model=agent_model, make_user=make_user, judge=judge, max_turns=args.max_turns,
                        max_steps=args.max_steps, run_id=run_id, tags=[args.split, args.user, *args.tag],
                        metadata={"model": settings.llm_model, "effort": settings.llm_effort, "user": args.user})

@@ -28,6 +28,7 @@ def test_defaults_point_at_repository():
     assert settings.cors_origins == ()
     assert settings.llm_provider == "anthropic"
     assert settings.llm_model == "claude-haiku-5-5" and settings.llm_effort == "medium"
+    assert settings.llm_fallback_models == ()
 
 
 def test_env_overrides_resolve_relative_to_root(monkeypatch, tmp_path):
@@ -47,8 +48,10 @@ def test_env_overrides_resolve_relative_to_root(monkeypatch, tmp_path):
 def test_llm_overrides(monkeypatch):
     monkeypatch.setenv("SELLEROPS_LLM_MODEL", " claude-sonnet-5-5 ")
     monkeypatch.setenv("SELLEROPS_LLM_EFFORT", "HIGH")
+    monkeypatch.setenv("SELLEROPS_LLM_FALLBACK_MODELS", "claude-sonnet-5-5, claude-opus-5-5")
     settings = Settings.from_env()
     assert settings.llm_model == "claude-sonnet-5-5" and settings.llm_effort == "high"
+    assert settings.llm_fallback_models == ("claude-sonnet-5-5", "claude-opus-5-5")
     monkeypatch.setenv("SELLEROPS_LLM_EFFORT", "turbo")
     with pytest.raises(ValueError, match="SELLEROPS_LLM_EFFORT"):
         Settings.from_env()

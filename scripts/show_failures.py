@@ -51,13 +51,36 @@ def show(record: dict[str, Any], width: int) -> None:
               f"ended_by {record.get('ended_by')}, stop {record.get('stop_reason')}")
 
     print("  --- trajectory")
-    history = list(record.get("history") or [])
+    if record.get("messages"):  # exact interleaving (runs since A4 store the thread's messages)
+        for message in record["messages"]:
+            if message["role"] == "human":
+                print(f"  seller: {message['text']}")
+            elif message["role"] == "ai":
+                if message.get("text"):
+                    print(f"  agent says: {short(message['text'], width)}")
+                for call in message.get("tool_calls", []):
+                    if call["name"] == "ask_user":
+                        print(f"  agent asks: {call['args'].get('question')}")
+                    elif call["name"] == "final":
+                        print(f"  agent final message: {call['args'].get('message')}")
+                        print(f"  agent final data: {short(call['args'].get('data'), width)}")
+                    else:
+                        print(f"    tool {call['name']}({short(call['args'], 120)})")
+            elif message["role"] == "tool":
+                label = "seller" if message.get("name") == "ask_user" else "      ->"
+                print(f"  {label}: {short(message['text'], width)}" if label == "seller"
+                      else f"{label} {short(message['text'], width)}")
+        history = []
+        turns = []
+    else:
+        history = list(record.get("history") or [])
+        turns = record.get("turns") or []
     transcript = record.get("transcript") or []
-    turns = record.get("turns") or []
-    # The record does not split tool calls per turn: all of them are shown in the last turn,
+    # Older records do not split tool calls per turn: all of them are shown in the last turn,
     # after the clarification questions. Use the LangSmith trace for the exact interleaving.
     seller_lines = [t for t in transcript if t["role"] == "user"]
-    print(f"  seller: {seller_lines[0]['text'] if seller_lines else '?'}")
+    if turns:
+        print(f"  seller: {seller_lines[0]['text'] if seller_lines else '?'}")
     for index, turn in enumerate(turns):
         action = turn.get("final_action") or {}
         if index == len(turns) - 1:

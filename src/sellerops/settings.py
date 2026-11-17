@@ -80,6 +80,7 @@ class Settings:
     llm_model: str
     llm_effort: str
     llm_base_url: str  # only used by the openai_compatible provider
+    llm_fallback_models: tuple[str, ...]  # same provider; tried in order when the primary fails
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -100,6 +101,7 @@ class Settings:
             llm_model=_llm_model(provider),
             llm_effort=_env_choice("SELLEROPS_LLM_EFFORT", "medium", _LLM_EFFORTS),
             llm_base_url=os.environ.get("LLM_BASE_URL", "").strip() or DEFAULT_LLM_BASE_URL,
+            llm_fallback_models=_env_list("SELLEROPS_LLM_FALLBACK_MODELS"),
         )
 
 

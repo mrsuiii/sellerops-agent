@@ -36,6 +36,7 @@ from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.memory import InMemorySaver
 
 from ..harness.graph import build_agent_graph
+from ..harness.trajectory import message_to_dict
 from ..schemas import MAX_AGENT_STEPS
 from ..simulator import SellerEpisode
 from .conversation import DEFAULT_MAX_TURNS, run_conversation
@@ -62,14 +63,26 @@ def _sum_usage(handler: UsageMetadataCallbackHandler) -> dict[str, int]:
     return total
 
 
+def thread_id_for(run_id: str, task_id: str, trial: int) -> str:
+    return f"{run_id}-{task_id}-t{trial}"
+
+
 def run_trial(task: dict[str, Any], trial: int, *, agent_model: BaseChatModel, make_user: UserFactory,
               judge: MessageJudge | None = None, max_turns: int = DEFAULT_MAX_TURNS,
               max_steps: int = MAX_AGENT_STEPS, run_id: str = "", tags: list[str] | None = None,
-              metadata: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Run and grade one conversation; never raises for agent/API failures."""
+              metadata: dict[str, Any] | None = None, checkpointer: Any = None,
+              graph_options: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Run and grade one conversation; never raises for agent/API failures.
+
+    ``checkpointer``: shared saver (e.g. SQLite, for replay later); default a
+    fresh ``InMemorySaver``. ``graph_options`` go to ``build_agent_graph``
+    (fallback models, budgets, context budget).
+    """
     episode = SellerEpisode()
     graph = build_agent_graph(agent_model, make_seller_tools(episode), system_prompt=SELLER_SYSTEM_PROMPT,
-                              terminal_tools=TERMINAL_TOOLS, max_steps=max_steps, checkpointer=InMemorySaver())
+                              terminal_tools=TERMINAL_TOOLS, max_steps=max_steps,
+                              checkpointer=checkpointer or InMemorySaver(), **(graph_options or {}))
+    thread_id = thread_id_for(run_id, task["task_id"], trial)
     usage = UsageMetadataCallbackHandler()
     run_config = {
         "run_name": f"{task['task_id']}#t{trial}",
@@ -81,15 +94,23 @@ def run_trial(task: dict[str, Any], trial: int, *, agent_model: BaseChatModel, m
         "callbacks": [usage],
     }
     record: dict[str, Any] = {"task_id": task["task_id"], "family": task["family"], "trial": trial,
-                              "score": None, "error": None}
+                              "thread_id": thread_id, "score": None, "error": None}
+
+    def messages() -> list[dict[str, Any]]:
+        try:
+            state = graph.get_state({"configurable": {"thread_id": thread_id}})
+            return [message_to_dict(m) for m in (state.values or {}).get("messages", [])]
+        except Exception:  # nothing checkpointed yet
+            return []
+
     started = perf_counter()
     try:
         result = run_conversation(graph, task, make_user(), max_turns=max_turns,
-                                  thread_id=f"{run_id}-{task['task_id']}-t{trial}", run_config=run_config)
+                                  thread_id=thread_id, run_config=run_config)
     except Exception as error:  # API failure, recursion limit, …: recorded, not fatal for the run
         record.update(error=f"{type(error).__name__}: {str(error)[:300]}",
                       latency_s=round(perf_counter() - started, 3), usage=_sum_usage(usage),
-                      history=episode.snapshot()["history"])
+                      history=episode.snapshot()["history"], messages=messages())
         return record
     latency = round(perf_counter() - started, 3)
     snapshot = episode.snapshot()
@@ -100,7 +121,7 @@ def run_trial(task: dict[str, Any], trial: int, *, agent_model: BaseChatModel, m
         metrics=report["metrics"], ended_by=result["ended_by"], stop_reason=result["stop_reason"],
         latency_s=latency, usage=_sum_usage(usage), final_action=result["final_action"],
         transcript=result["transcript"], turns=result["turns"], history=snapshot["history"],
-        proposals=snapshot["proposals"],
+        proposals=snapshot["proposals"], messages=messages(),
     )
     if judge is not None and record["score"] == 1:
         try:
