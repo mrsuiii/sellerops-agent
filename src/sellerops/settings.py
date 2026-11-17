@@ -2,7 +2,7 @@
 
 ``.env`` is loaded with python-dotenv; real environment variables win. All variables use the
 ``SELLEROPS_`` prefix; third-party keys (``LANGSMITH_API_KEY``,
-``GEMINI_API_KEY``, ``ANTHROPIC_API_KEY``, ``LLM_API_KEY``) keep their own names and
+``ANTHROPIC_API_KEY``, ``LLM_API_KEY``) keep their own names and
 are read by their libraries or the model adapter, so they are never stored on
 ``Settings``. Because ``.env`` is
 loaded into ``os.environ``, ``anthropic.Anthropic()`` picks up a key from ``.env``

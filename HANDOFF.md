@@ -18,7 +18,7 @@ sesi sebelumnya (user: "lanjutkan"):
    `sim_tools`, `telemetry`, `runner`), `AGENT_WALKTHROUGH.md`,
    `docs/episode-replay-and-verification.md`, extra `local-model`, test
    terkait. Dipertahankan: `metrics.py` (+ `pass_hat_metrics` untuk pass^k),
-   `judge.py` (Gemini; rubrik masih lama, `with_judge` dihapus).
+   `judge.py` (sekarang: judge `message` via NVIDIA, lihat bawah).
 2. **Simulator seller (Session C1)** di `src/sellerops/simulator/`:
    `generator.py` (seed `20261117`, 90 hari s.d. `AS_OF=2026-11-15`, skenario
    tertanam: spike FS163, stockout FS186, low stock FS180, slow movers
@@ -61,14 +61,26 @@ call → `no_tool_call` (eval) atau `answer` (chat). 94 test lolos, 0 skip.
 
 ## 2. Langkah berikutnya
 
-1. A1 terverifikasi dengan API sungguhan: 2 dev task lolos (termasuk
-   multi-turn), prompt cache terbaca. Worktree ini tidak punya `.env`; uji
-   memuat `.env` dari checkout utama lewat `load_dotenv` di script scratchpad.
-   Temuan: angka turunan di `message` (persentase) dihitung model sendiri.
-2. A2 (robustness: `RetryPolicy`, `with_fallbacks`, timeout) dan A3 (CLI eval
-   multi-turn, `LLMUser`, pass^k).
-3. Opsional: rubrik judge baru untuk `message` (analis seller), endpoint HTTP
-   seller + `StoreClient` (C2/C3), keputusan `uv.lock` (masih untracked).
+1. **A3 berjalan.** `scripts/evaluate_seller.py` (`make eval-smoke`,
+   `make eval`). Smoke run 17 Nov (Haiku 5.5, `ScriptedUser`, k=1): **8/10**;
+   hasil di `results/evaluation/20261117-154812-*`. Dua kegagalan untuk RCA
+   (bagian Nigka): `slow-movers-tas-tidak-laku` (answer) dan
+   `caption-dress-pea` (mengubah `tags` padahal penjual hanya minta
+   deskripsi, tanpa bertanya). Berikutnya: run penuh `--user llm --k 3
+   --judge`, error analysis ≥ 5 kegagalan, failure penting → regression test.
+2. Judge `message` sudah NVIDIA (`judge.py`, rubrik `seller-message-v1`).
+   Model yang responsif: `nvidia/nemotron-3-ultra-550b-a55b` (set
+   `SELLEROPS_JUDGE_MODEL`); `meta/muse-glimmer-30b` timeout. Belum divalidasi
+   dengan label manual.
+3. A2 (robustness: `RetryPolicy`, `with_fallbacks`, timeout per episode,
+   budget token): sebagian sudah dari A1 (error tool → `ToolMessage`, retry
+   SDK, timeout per call); sisanya bagian Nigka.
+4. Runtime context (`user_id` / `store_id`) + client production untuk tool
+   seller, lalu RAG.
+
+Bug yang ditemukan eval: key `run_id` di `metadata` config membuat giliran
+kedua dst. no-op di LangGraph (state lama dikembalikan). Runner memakai
+`eval_run_id`; ada regression test.
 
 ## 3. Hal yang perlu diingat
 

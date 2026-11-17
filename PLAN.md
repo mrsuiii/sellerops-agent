@@ -236,12 +236,14 @@ DoD: setiap jenis error punya perilaku eksplisit dan test.
 
 Status: [ ]
 
-- [ ] CLI eval (`scripts/evaluate_seller.py`) yang menjalankan agent A1 per
-  task dev lewat `run_conversation` (episode + `thread_id` per percakapan,
-  `LLMUser` atau `ScriptedUser`), k ≥ 3 repetisi; laporkan pass@1, pass@k,
-  dan pass^k (`metrics.py`) per family.
-- [ ] Catat token, biaya, latency p50/p95, rata-rata steps (dari LangSmith /
-  `usage_metadata`).
+- [x] CLI eval (`scripts/evaluate_seller.py`, `make eval-smoke` / `make eval`;
+  logika di `evaluation/seller_eval.py`): episode + graph + `thread_id` per
+  percakapan, `ScriptedUser` atau `LLMUser`, k repetisi paralel; pass@1, pass@k,
+  pass^k per family; judge NVIDIA opsional (`--judge`) untuk `message`.
+  Smoke run pertama (17 Nov, Haiku 5.5, scripted, k=1): 8/10.
+- [x] Token (input/output/cache), latency p50/p95, rata-rata tool call dan
+  giliran per run (`UsageMetadataCallbackHandler`); biaya dalam $ belum.
+- [ ] Run penuh `--user llm --k 3 --judge`.
 - [ ] Error analysis minimal 5 kegagalan (ala Hamel Husain) dari trace
   LangSmith; failure penting jadi regression test.
 - [ ] Opsional: model NVIDIA via `ChatOpenAI` + `base_url` sebagai pembanding

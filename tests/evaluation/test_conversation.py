@@ -93,3 +93,15 @@ def test_pending_ask_user_id_requires_the_call() -> None:
     assert pending_ask_user_id([ask("Q?", "c9")["messages"][0]]) == "c9"
     with pytest.raises(ValueError):
         pending_ask_user_id([AIMessage("hi")])
+
+
+def test_run_config_is_merged_into_every_invoke(dev_tasks, solve) -> None:
+    task = dev_tasks["seller-dev-sales-summary-toko-tanpa-periode"]
+    answer = solve(task, SellerEpisode())
+    graph = FakeGraph([ask("Periode berapa hari?", "call_ask_1"), final(answer["data"])])
+    run_conversation(graph, task, ScriptedUser(), thread_id="th-9",
+                     run_config={"tags": ["eval"], "metadata": {"trial": 2},
+                                 "configurable": {"thread_id": "ignored", "x": 1}})
+    for config in graph.configs:
+        assert config["tags"] == ["eval"] and config["metadata"] == {"trial": 2}
+        assert config["configurable"] == {"thread_id": "th-9", "x": 1}

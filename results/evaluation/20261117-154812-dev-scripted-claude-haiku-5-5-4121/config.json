@@ -1,0 +1,30 @@
+{
+ "run_id": "20261117-154812-dev-scripted-claude-haiku-5-5-4121",
+ "split": "dev",
+ "k": 1,
+ "user": "scripted",
+ "user_effort": null,
+ "tasks": [
+  "seller-dev-sales-summary-toko-tanpa-periode",
+  "seller-dev-sales-summary-omzet-30-hari",
+  "seller-dev-top-category-kategori-omzet-terbesar",
+  "seller-dev-top-products-sepatu-terlaris",
+  "seller-dev-slow-movers-tas-tidak-laku",
+  "seller-dev-restock-restock-semua",
+  "seller-dev-review-insight-keluhan-sepatu",
+  "seller-dev-sales-spike-lonjakan-minggu-ini",
+  "seller-dev-sales-drop-sepatu-wanita-turun",
+  "seller-dev-caption-caption-dress-pea"
+ ],
+ "max_turns": 5,
+ "max_steps": 8,
+ "agent_model": "claude-haiku-5-5",
+ "agent_effort": "medium",
+ "judge_model": null,
+ "judge_rubric": null,
+ "data_version": "seller-sim-v1",
+ "tasks_manifest_sha256": "0c66f2f933673dd0f9f8fb04894850f8e570440c3d08abb030b13986ee8d0169",
+ "git_commit": "f6bd8d6",
+ "langsmith_project": "sellerops-agent",
+ "started_at": "20261117-154812"
+}

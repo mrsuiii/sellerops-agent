@@ -1,0 +1,27 @@
+# docker compose up store                          # demo store on :8000 (production image)
+# docker compose run --rm eval                     # eval smoke run (needs .env.eval)
+# docker compose run --rm eval --user llm --k 3 --judge
+#
+# The eval service is behind a profile, so `docker compose up` never starts it
+# (and never spends API credit). Its secrets come only from .env.eval.
+services:
+  store:
+    build:
+      context: .
+      target: store
+    image: sellerops-store
+    ports:
+      - "8000:8000"
+
+  eval:
+    profiles: ["eval"]
+    build:
+      context: .
+      target: eval
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    image: sellerops-eval
+    env_file:
+      - .env.eval
+    volumes:
+      - ./results/evaluation:/app/results/evaluation

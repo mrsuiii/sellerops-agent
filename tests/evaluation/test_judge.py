@@ -1,93 +1,126 @@
-"""Judge transport/protocol tests; no external API calls or model-quality claims."""
+"""Message judge: input, parsing and failure handling with a scripted model (no network)."""
+
+from __future__ import annotations
 
 import json
-from io import BytesIO
-from urllib.error import HTTPError, URLError
+from typing import Any
 
 import pytest
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
 
 from sellerops.evaluation import judge
+from sellerops.settings import get_settings
 
 
-@pytest.fixture(autouse=True)
-def no_network(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "test-secret")
-    def reject(*args, **kwargs):
-        raise AssertionError("Unexpected network request")
-    monkeypatch.setattr(judge, "urlopen", reject)
+class ReplyModel(BaseChatModel):
+    reply: str = ""
+    fail: bool = False
+    seen: list[list[BaseMessage]] = []
+
+    @property
+    def _llm_type(self) -> str:
+        return "reply"
+
+    def _generate(self, messages: list[BaseMessage], stop: Any = None, run_manager: Any = None,
+                  **kwargs: Any) -> ChatResult:
+        if self.fail:
+            raise RuntimeError("401 Unauthorized: Bearer nvapi-secret")
+        self.seen.append(list(messages))
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(self.reply))])
 
 
-def payload(decision=None, finish="STOP"):
-    decision = decision or {"correct": True, "complete": True, "grounded": True, "reason": "Facts agree."}
-    return {"candidates": [{"finishReason": finish, "content": {"parts": [{"text": json.dumps(decision)}]}}],
-            "modelVersion": "test-version", "usageMetadata": {"totalTokenCount": 123}}
+TASK = {"task_id": "demo", "expected": {"revenue_idr": 999}}
+SNAPSHOT = {"history": [{"tool": "get_sales_summary", "arguments": {"period": "last_30_days"},
+                         "observation": {"ok": True, "result": {"revenue_idr": 1872943000, "orders": 775}}}]}
+RESULT = {"transcript": [{"role": "user", "text": "Berapa omzet 30 hari?"}],
+          "final_action": {"type": "final", "message": "Omzet Rp1.872.943.000 dari 775 order.",
+                           "data": {"revenue_idr": 1872943000, "orders": 775}}}
 
 
-def assess():
-    return judge.GeminiJudge().assess(
-        {"prompt": "Check stock"},
-        {"response": "Seven units remain.", "final_action": {"data": {"available_stock": 7}},
-         "snapshot": {"history": []}, "config": {"must_not_send": "private-config"}},
-        {"task": {"task_id": "demo"}, "expected_answer": "Stock is 7.",
-         "expected_final_action": {"data": {"available_stock": 7}}, "acceptance_notes": "Wording may differ."})
+def decision(**overrides: Any) -> str:
+    return json.dumps({"faithful": True, "answers_request": True, "reason": "Angka cocok.", **overrides})
 
 
-def test_request_schema_credentials_and_provenance(monkeypatch):
-    sent = []
-    def send(request, timeout):
-        sent.append((request, timeout))
-        return BytesIO(json.dumps(payload()).encode())
-    monkeypatch.setattr(judge, "urlopen", send)
-    result = assess()
-    request, timeout = sent[0]
-    body = json.loads(request.data)
-    assert timeout == 30 and request.get_header("X-goog-api-key") == "test-secret"
-    assert "test-secret" not in request.full_url and "test-secret" not in request.data.decode()
-    assert "private-config" not in request.data.decode()
-    assert body["generationConfig"]["responseMimeType"] == "application/json"
-    assert body["systemInstruction"]["parts"][0]["text"] == judge.RUBRIC
-    data = json.loads(body["contents"][0]["parts"][0]["text"])
-    assert data["actual_answer"] != data["expected_answer"]
-    assert result["pass"] is True and result["model_version"] == "test-version"
-    assert "test-secret" not in json.dumps(judge.GeminiJudge().metadata)
+def test_scored_pass_and_judge_sees_evidence_not_answer_key() -> None:
+    model = ReplyModel(reply=decision(), seen=[])
+    result = judge.MessageJudge(model).assess(TASK, SNAPSHOT, RESULT)
+    assert result["status"] == "scored" and result["pass"] is True
+    system, human = model.seen[0]
+    assert system.content == judge.RUBRIC
+    sent = json.loads(human.content)
+    assert sent["final_message"] == RESULT["final_action"]["message"]
+    assert sent["tool_evidence"][0]["result"]["result"]["orders"] == 775
+    assert "expected" not in human.content and "999" not in human.content
 
 
-@pytest.mark.parametrize("decision", [
-    {"correct": False, "complete": True, "grounded": True, "reason": "Incorrect stock."},
-    {"correct": True, "complete": False, "grounded": True, "reason": "Missing total."},
-    {"correct": True, "complete": True, "grounded": False, "reason": "Unsupported reservation."},
-])
-def test_all_three_criteria_required(monkeypatch, decision):
-    monkeypatch.setattr(judge, "urlopen", lambda *a, **kw: BytesIO(json.dumps(payload(decision)).encode()))
-    assert assess()["pass"] is False
+@pytest.mark.parametrize("field", judge.CRITERIA)
+def test_any_failed_criterion_fails(field: str) -> None:
+    model = ReplyModel(reply=decision(**{field: False}), seen=[])
+    assert judge.MessageJudge(model).assess(TASK, SNAPSHOT, RESULT)["pass"] is False
 
 
-@pytest.mark.parametrize("response", [
-    b"not json", b"{}", json.dumps(payload(finish="MAX_TOKENS")).encode(),
-    json.dumps(payload({"correct": 1, "complete": True, "grounded": True, "reason": "bad type"})).encode(),
-    json.dumps(payload({"correct": True, "complete": True, "grounded": True, "reason": ""})).encode(),
-    json.dumps(payload({"correct": True, "complete": True, "grounded": True, "reason": "ok", "pass": True})).encode(),
-])
-def test_bad_responses_are_evaluation_errors(monkeypatch, response):
-    monkeypatch.setattr(judge, "urlopen", lambda *a, **kw: BytesIO(response))
+def test_reasoning_block_and_surrounding_text_are_ignored() -> None:
+    reply = '<think>{"faithful": false} hitung dulu</think>\nHasil: ' + decision(faithful=True) + "\n"
+    assert judge.parse_decision(reply).faithful is True
+
+
+@pytest.mark.parametrize("reply", ["tidak ada json", '{"faithful": "yes", "answers_request": true, "reason": "x"}',
+                                   decision(extra=1), decision(reason="")])
+def test_bad_reply_is_judge_error(reply: str) -> None:
     with pytest.raises(judge.JudgeError):
-        assess()
+        judge.MessageJudge(ReplyModel(reply=reply, seen=[])).assess(TASK, SNAPSHOT, RESULT)
 
 
-@pytest.mark.parametrize("error", [HTTPError("secret-url", 429, "test-secret", {}, None),
-                                  URLError("test-secret"), TimeoutError("test-secret")])
-def test_transport_errors_are_sanitized_without_retry(monkeypatch, error):
-    calls = []
-    def fail(*args, **kwargs):
-        calls.append(1)
-        raise error
-    monkeypatch.setattr(judge, "urlopen", fail)
-    with pytest.raises(judge.JudgeError) as caught:
-        assess()
-    assert "test-secret" not in str(caught.value) and len(calls) == 1
+def test_transport_error_does_not_leak_details() -> None:
+    with pytest.raises(judge.JudgeError) as info:
+        judge.MessageJudge(ReplyModel(fail=True, seen=[])).assess(TASK, SNAPSHOT, RESULT)
+    assert "nvapi-secret" not in str(info.value) and info.value.__cause__ is None
 
 
-def test_key_required(monkeypatch):
-    monkeypatch.delenv("GEMINI_API_KEY")
-    with pytest.raises(ValueError, match="GEMINI_API_KEY"):
-        judge.GeminiJudge()
+def test_no_final_is_skipped_without_calling_the_model() -> None:
+    model = ReplyModel(reply=decision(), seen=[])
+    result = judge.MessageJudge(model).assess(TASK, SNAPSHOT, {"transcript": [], "final_action": None})
+    assert result["status"] == "skipped" and model.seen == []
+
+
+def test_nvidia_model_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_API_KEY", "nvapi-test")
+    monkeypatch.setenv("SELLEROPS_JUDGE_MODEL", "vendor/some-model")
+    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    get_settings.cache_clear()
+    try:
+        model = judge.nvidia_judge_model()
+    finally:
+        get_settings.cache_clear()
+    assert model.model_name == "vendor/some-model" and model.temperature == 0
+    assert model.openai_api_base == "https://integrate.api.nvidia.com/v1"
+    assert model.use_responses_api is False
+    assert judge.MessageJudge(model).metadata["model"] == "vendor/some-model"
+
+
+def test_judge_model_falls_back_to_llm_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_API_KEY", "nvapi-test")
+    monkeypatch.setenv("SELLEROPS_JUDGE_MODEL", "")
+    monkeypatch.setenv("LLM_MODEL", "vendor/fallback")
+    get_settings.cache_clear()
+    try:
+        assert judge.nvidia_judge_model().model_name == "vendor/fallback"
+    finally:
+        get_settings.cache_clear()
+
+
+@pytest.mark.parametrize(("missing", "message"), [("LLM_API_KEY", "LLM_API_KEY"),
+                                                  ("SELLEROPS_JUDGE_MODEL", "SELLEROPS_JUDGE_MODEL")])
+def test_nvidia_model_requires_key_and_model(monkeypatch: pytest.MonkeyPatch, missing: str, message: str) -> None:
+    monkeypatch.setenv("LLM_API_KEY", "nvapi-test")
+    monkeypatch.setenv("SELLEROPS_JUDGE_MODEL", "vendor/some-model")
+    monkeypatch.setenv(missing, "")
+    monkeypatch.setenv("LLM_MODEL", "")
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(ValueError, match=message):
+            judge.nvidia_judge_model()
+    finally:
+        get_settings.cache_clear()

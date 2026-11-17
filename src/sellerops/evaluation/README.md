@@ -101,8 +101,20 @@ report = verify_conversation(task, episode.snapshot(), result, store=episode.sto
 - Metrik (bukan syarat lulus): jumlah giliran, jumlah tool call, apakah agent
   bertanya saat task butuh klarifikasi.
 
-`message` bebas belum dinilai; `judge.py` (Gemini) masih memakai rubrik lama
-dan perlu rubrik analis seller sebelum dipakai lagi.
+`message` bebas dinilai terpisah oleh `judge.py` (`MessageJudge`), hanya untuk
+percakapan yang berakhir `final`: `faithful` (angka/klaim di `message` didukung
+hasil tool, angka turunan dihitung benar) dan `answers_request`. Judge melihat
+percakapan, `final`, dan riwayat tool, **tanpa** kunci jawaban. Model:
+`nvidia_judge_model()` = `ChatOpenAI` ke endpoint NVIDIA (`LLM_API_KEY`,
+`SELLEROPS_JUDGE_MODEL`); error judge (`JudgeError`) bukan skor gagal agent.
+Validasi judge dengan label manual sebelum dipercaya.
+
+Runner: `seller_eval.py` (`run_trial` → `run_eval` → `summarize`), CLI
+`scripts/evaluate_seller.py` (`make eval-smoke`, `make eval`). Hasil di
+`results/evaluation/<run_id>/`: `config.json`, `records.jsonl` (transcript +
+riwayat tool per percakapan, bahan error analysis), `summary.json`,
+`summary.md`. Split test butuh `--allow-test`. Jangan memakai key `run_id`
+di `metadata` config: LangGraph membacanya dan giliran kedua dst. jadi no-op.
 
 Agregasi: `pass_metrics` (pass@k, minimal satu dari k percobaan lulus) dan
 `pass_hat_metrics` (pass^k τ-bench, semua k percobaan lulus) dari hasil

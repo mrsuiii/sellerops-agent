@@ -117,8 +117,8 @@ Detail lengkap dan langkah berikutnya: **`HANDOFF.md`**.
 - **Production-readiness** (PR #3, #4): `pyproject.toml`, Dockerfile, settings
   env (`sellerops.settings.get_settings()`), structured logging.
 - **Provider LLM** (PR #5, #6): `SELLEROPS_LLM_PROVIDER` = `anthropic`
-  (default) atau `openai_compatible` (NVIDIA; `langchain-openai` belum
-  terpasang).
+  (default) atau `openai_compatible` (NVIDIA; `langchain-openai` terpasang, dipakai judge eval;
+  adapter agent belum).
 - Kalau memakai Claude: aktifkan prompt caching untuk system prompt dan tools
   (`cache_control` lewat `ChatAnthropic`), dan cek `cache_read_input_tokens` di
   `usage_metadata`.

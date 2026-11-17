@@ -49,11 +49,19 @@ def pending_ask_user_id(messages: list[Any]) -> str:
 def run_conversation(graph: Any, task: dict[str, Any], user: UserSimulator, *,
                      max_turns: int = DEFAULT_MAX_TURNS, thread_id: str | None = None,
                      turn_reset: Mapping[str, Any] = DEFAULT_TURN_RESET,
-                     recursion_limit: int = 50) -> dict[str, Any]:
-    """Run one task to the end; returns a JSON-serializable result for the verifier."""
+                     recursion_limit: int = 50,
+                     run_config: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Run one task to the end; returns a JSON-serializable result for the verifier.
+
+    ``run_config`` is merged into every invoke's config: e.g. ``tags``,
+    ``metadata`` and ``run_name`` for LangSmith, or ``callbacks`` such as a
+    token-usage handler. ``configurable.thread_id`` stays the conversation's.
+    """
 
     thread_id = thread_id or f"{task['task_id']}-{uuid.uuid4().hex[:8]}"
-    config = {"configurable": {"thread_id": thread_id}, "recursion_limit": recursion_limit}
+    config = {**(run_config or {}), "configurable": {**(run_config or {}).get("configurable", {}),
+                                                     "thread_id": thread_id},
+              "recursion_limit": recursion_limit}
     transcript: list[dict[str, str]] = [{"role": "user", "text": task["opening_message"]}]
     turns: list[dict[str, Any]] = []
     next_input: Any = HumanMessage(task["opening_message"])
