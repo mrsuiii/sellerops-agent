@@ -26,7 +26,7 @@ sesi sebelumnya (user: "lanjutkan"):
    proposal caption yang tidak mengubah produk), `episode.py`
    (`SellerEpisode`). Data + checksum di `data/seller_sim/` (`make sim`).
 3. **Eval multi-turn** di `src/sellerops/evaluation/`: `seller_tools.py`
-   (enam tool), `terminal_tools.py` (`final(message, data)`,
+   (enam tool dari `harness/tools/seller.py`, client = `SellerEpisode`), `terminal_tools.py` (`final(message, data)`,
    `ask_user(question)`), `prompts.py` (`SELLER_SYSTEM_PROMPT`),
    `seller_tasks.py` (10 dev + 9 test frozen, kunci jawaban dihitung dari
    data), `user_sim.py` (`ScriptedUser`, `LLMUser`), `conversation.py`

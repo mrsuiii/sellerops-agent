@@ -44,9 +44,10 @@ dan `README.md`. Versi lama TARGET/PLAN ada di `../../archive/`.
 - Sebelum memakai parameter `ChatAnthropic` (effort, caching, fallback) atau
   API LangGraph, cek dokumentasi versi yang terpasang.
 - Lokasi kode: `src/sellerops/harness/` (agent: `models.py`, `state.py`,
-  `graph.py`; `harness/tools/` hanya untuk tool production:
-  seller di Track C, `store.py` Kala Studio di B1). Khusus eval ada di
-  `evaluation/`: `seller_tools.py` (enam tool seller via `SellerEpisode`),
+  `graph.py`; `harness/tools/` untuk tool production: `seller.py` = enam
+  tool seller di atas Protocol `SellerDataClient`, `store.py` Kala Studio di
+  B1). Khusus eval ada di `evaluation/`: `seller_tools.py` (tool yang sama,
+  client = `SellerEpisode`),
   `terminal_tools.py` (kontrak `final`/`ask_user`), `prompts.py`
   (`SELLER_SYSTEM_PROMPT`), `seller_tasks.py`, `user_sim.py`
   (`ScriptedUser`/`LLMUser`), `conversation.py` (loop giliran),

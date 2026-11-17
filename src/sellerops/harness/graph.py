@@ -25,8 +25,8 @@ Shape:
 Dependencies arrive as arguments; this module never imports
 ``sellerops.evaluation`` or ``sellerops.simulator``:
 
-- ``tools``: ordinary tools (eval: ``make_seller_tools``; production:
-  ``sellerops.harness.tools``);
+- ``tools``: ordinary tools (``sellerops.harness.tools.make_seller_tools(client)``;
+  eval passes a ``SellerEpisode`` as the client);
 - ``system_prompt``: required (eval: ``SELLER_SYSTEM_PROMPT``);
 - ``terminal_tools``: Pydantic classes; tool name =
   ``schema.model_config["title"]``, ``schema.model_validate(args).to_action()``

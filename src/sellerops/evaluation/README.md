@@ -16,7 +16,7 @@ runner LangSmith) sudah dihapus pada 17 Nov 2026. Polanya tetap jadi acuan.
 | `simulator/generator.py` | Generator 90 hari order, stok, review (seed tetap) + skenario tertanam |
 | `simulator/store.py` | Read model: `sales_summary`, `product_performance`, `inventory_status`, `reviews`, `product`, `propose_caption_update` |
 | `simulator/episode.py` | `SellerEpisode`: proposal milik episode sendiri + riwayat tool call |
-| `evaluation/seller_tools.py` | Enam tool `@tool`-style (`StructuredTool`) yang terikat ke satu episode |
+| `evaluation/seller_tools.py` | Enam tool seller production (`harness/tools/seller.py`) dengan `SellerEpisode` sebagai client |
 | `evaluation/terminal_tools.py` | `final(message, data)` dan `ask_user(question)` |
 | `evaluation/prompts.py` | `SELLER_SYSTEM_PROMPT` |
 | `evaluation/seller_tasks.py` | Task dev/test dengan kunci jawaban yang dihitung dari data |

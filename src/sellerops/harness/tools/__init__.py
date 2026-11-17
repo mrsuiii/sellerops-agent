@@ -1,9 +1,13 @@
-"""Production tools bound to the agent graph (none yet).
+"""Production tools bound to the agent graph.
 
-- Seller agent tools (Track C), e.g. ``get_reviews``, ``get_product``.
-- ``store``: Kala Studio tools for the buyer agent (Track B), behind a
+- ``seller``: the six seller agent tools behind a ``SellerDataClient``
+  (eval passes a ``SellerEpisode``; production an in-process or HTTP client).
+- ``store`` (Track B): Kala Studio tools for the buyer agent, behind a
   ``StoreClient`` interface (in-process for tests, HTTP for production).
 
-Eval-only tools live in ``sellerops.evaluation`` (``seller_tools``,
-``terminal_tools``); this package must not import them.
+This package must not import ``sellerops.evaluation`` or ``sellerops.simulator``.
 """
+
+from .seller import SELLER_TOOL_NAMES, SellerDataClient, make_seller_tools
+
+__all__ = ["SELLER_TOOL_NAMES", "SellerDataClient", "make_seller_tools"]

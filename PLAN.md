@@ -112,7 +112,7 @@ Tracing + eval = LangSmith.
 
 Struktur kode tumbuh bertahap di `src/sellerops/harness/`, misalnya
 `models.py` (chat model dari settings), `state.py`, `graph.py` (node + edge
-agent), `tools/` (tool production: seller di Track C, `store.py` di B1),
+agent), `tools/` (tool production: `seller.py` di atas `SellerDataClient`, `store.py` di B1),
 `trajectory.py`; tool dan kontrak khusus eval di `src/sellerops/evaluation/`
 (`seller_tools.py`, `terminal_tools.py`) — `harness` tidak mengimpornya; workflow di
 `src/sellerops/workflows/`. Jangan membuat semua file kosong sekaligus.
@@ -314,8 +314,11 @@ hari (`target_days`, bisa diubah), "perlu restock segera" = habis ≤ 7 hari.
 
 Status: [ ]
 
-- [ ] Tool baca: ringkasan penjualan, top/lambat, stok + saran restock,
-  insight review; seller agent = graph agent Track A.
+- [x] Tool seller di `harness/tools/seller.py` (`make_seller_tools(client)`,
+  Protocol `SellerDataClient`); eval memakai tool yang sama dengan
+  `SellerEpisode` sebagai client (17 Nov).
+- [ ] Service layer + in-process client untuk production (endpoint seller di
+  FastAPI); seller agent = graph agent Track A.
 - [ ] Task eval dengan jawaban yang bisa diverifikasi dari data sintetis.
 
 DoD: seller agent menjawab pertanyaan analisis dan lolos verifier.

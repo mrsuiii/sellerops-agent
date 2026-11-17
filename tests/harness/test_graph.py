@@ -1,8 +1,8 @@
 """Agent graph behavior (Session A1 definition of done). No network.
 
-These tests are skipped while ``build_agent_graph`` still raises
-NotImplementedError. They fix the outward behavior only; how the state,
-nodes and edges are designed is up to the implementation.
+The model is ``ScriptedChatModel`` (no API call). The tests fix the outward
+behavior only; how the state, nodes and edges are designed is up to the
+implementation.
 
 World: the seller simulator (``SellerEpisode`` + seller tools) and the eval
 terminal tools ``final`` / ``ask_user``.
@@ -14,7 +14,6 @@ import itertools
 import json
 from typing import Any
 
-import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
 from sellerops.evaluation.conversation import run_conversation
@@ -44,11 +43,8 @@ def sales_final(task: dict[str, Any]) -> AIMessage:
 
 
 def build(model, episode: SellerEpisode, *, max_steps: int = 8, terminal_tools=TERMINAL_TOOLS, checkpointer=None):
-    try:
-        return build_agent_graph(model, make_seller_tools(episode), system_prompt=SELLER_SYSTEM_PROMPT,
-                                 terminal_tools=terminal_tools, max_steps=max_steps, checkpointer=checkpointer)
-    except NotImplementedError:
-        pytest.skip("Session A1: build_agent_graph not implemented yet")
+    return build_agent_graph(model, make_seller_tools(episode), system_prompt=SELLER_SYSTEM_PROMPT,
+                             terminal_tools=terminal_tools, max_steps=max_steps, checkpointer=checkpointer)
 
 
 def run(model, task: dict[str, Any], *, max_steps: int = 8, recursion_limit: int = 50,
