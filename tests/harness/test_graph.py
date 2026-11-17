@@ -12,11 +12,11 @@ from typing import Any
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
+from sellerops.evaluation.prompts import SIM_SYSTEM_PROMPT, task_message
 from sellerops.evaluation.sim_tools import make_sim_tools
 from sellerops.evaluation.terminal_tools import TERMINAL_TOOLS
 from sellerops.evaluation.verifier import verify_outcome
 from sellerops.harness.graph import build_agent_graph
-from sellerops.harness.prompts import task_message
 from sellerops.simulator.episode_service import EpisodeService
 
 SEARCH_TASK = "dev-search-dev-brand-id-000"  # Comet backpack, expects P1008
@@ -38,7 +38,8 @@ def run(model, task: dict[str, Any], *, max_steps: int = 8, recursion_limit: int
     episode = service.create_episode(task["task_id"])
     try:
         graph = build_agent_graph(model, make_sim_tools(service, episode.session_id),
-                                  terminal_tools=terminal_tools, max_steps=max_steps)
+                                  system_prompt=SIM_SYSTEM_PROMPT, terminal_tools=terminal_tools,
+                                  max_steps=max_steps)
     except NotImplementedError:
         pytest.skip("Session A1: build_agent_graph not implemented yet")
     state = graph.invoke({"messages": [task_message(task)]}, {"recursion_limit": recursion_limit})

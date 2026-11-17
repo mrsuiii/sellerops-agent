@@ -262,6 +262,27 @@ ringkasan dengan benar.
 
 Spec: https://claude.ai/artifact/Wond21GKwf7ui7xdgcSHSa
 
+Catatan (17 Nov 2026) — data simulasi dan eval multi-turn:
+
+- Simulator saat ini (`src/sellerops/simulator/`, task `sellerops-sft-v0.2`)
+  masih domain lama: offer dan diskon per transaksi, satu task = satu pesan.
+  Ini **bukan** domain seller agent (spec: tanpa tawar-menawar). Dipakai untuk
+  A1–A3 saja.
+- Untuk Track C, **data simulasinya diganti**: katalog Kala Studio + order,
+  stok, dan review sintetis (C1), dengan task eval seller yang baru.
+- Eval seller dibuat **multi-turn** sejak awal (pola τ-bench). Yang perlu
+  dibuat, bukan hanya isi data:
+  - task dengan info tersembunyi milik user (detail yang baru disebut kalau
+    ditanya), persona, dan tujuan;
+  - user simulator (LLM yang membalas pertanyaan agent);
+  - runner giliran: agent → user simulator → agent …, batas giliran, state
+    agent disambung lewat checkpointer + `thread_id`;
+  - `ask_user` mengakhiri giliran, bukan episode; verifier menilai hasil
+    akhir percakapan (+ jumlah giliran, pass^k).
+- Graph agent (Track A) tidak perlu berubah bila `ask_user` menghentikan graph
+  dan giliran berikutnya dilanjutkan dengan `graph.invoke` pada `thread_id`
+  yang sama; pastikan `stop_reason` / `final_action` di-reset per giliran.
+
 ### Session C1 — Data order sintetis
 
 Status: [ ]
@@ -374,7 +395,13 @@ fitur selesai dan future work.
 
 ## Current next session
 
-Mulai dari **Session A1 — Chat model, tool, dan agent graph minimal**.
-Assistant menjelaskan dependency baru, menyiapkan `tools/`, fake chat model,
-dan test; user menyusun state, node, edge, dan stop condition. Sisa S4
-(scenario_id + seed) boleh dikerjakan sambil jalan bila dibutuhkan eval A3.
+Lihat **`HANDOFF.md` §2–§3** (17 Nov 2026). Ringkasnya:
+
+1. Arahan user: lupakan baseline 0.5B, **hapus simulator lama**, **buat
+   simulator baru multi-turn** (domain seller, sesuai spec). Artefak fine-tune
+   sudah dipindah ke `../../archive/sellerops-sft-0.5b/`.
+2. Akibatnya: Track 0 menjadi arsip; Session A3 "vs baseline" diganti eval
+   agent di simulator seller; Session C1 (data order sintetis) dikerjakan
+   lebih dulu karena menjadi dunia eval untuk A1–A3.
+3. Setelah simulator baru + test graph ditulis ulang, user mengerjakan TODO
+   A1 di `harness/state.py` dan `harness/graph.py`.

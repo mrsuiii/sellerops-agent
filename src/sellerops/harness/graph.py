@@ -9,14 +9,15 @@ Pieces already available:
 
 - ``sellerops.harness.models``: ``get_chat_model()``, ``CACHE_CONTROL``,
   ``cached_system_message()``
-- ``sellerops.harness.prompts``: ``SYSTEM_PROMPT``, ``task_message()``
 
 Everything else arrives as an argument. Never import from
-``sellerops.evaluation`` or ``sellerops.services`` here:
+``sellerops.evaluation`` or ``sellerops.simulator`` here:
 
 - ``tools``: ordinary tools to execute (eval:
   ``sellerops.evaluation.sim_tools.make_sim_tools``; production:
   ``sellerops.harness.tools``, Track C / B);
+- ``system_prompt``: required; the harness has no default prompt (eval:
+  ``sellerops.evaluation.prompts.SIM_SYSTEM_PROMPT``);
 - ``terminal_tools``: Pydantic classes the model calls to finish (eval:
   ``sellerops.evaluation.terminal_tools.TERMINAL_TOOLS``; production chat:
   none). Generic protocol: tool name = ``schema.model_config["title"]``;
@@ -46,7 +47,8 @@ Framework notes:
 Interface the tests expect:
 
     graph = build_agent_graph(model, tools, max_steps=8)
-    state = graph.invoke({"messages": [task_message(task)]})   # eval: terminal_tools=TERMINAL_TOOLS
+    graph = build_agent_graph(model, tools, system_prompt=..., terminal_tools=..., max_steps=8)
+    state = graph.invoke({"messages": [HumanMessage(...)]})
     state["final_action"], state["stop_reason"], state["messages"]
 """
 
@@ -65,9 +67,9 @@ def build_agent_graph(
     model: BaseChatModel,
     tools: Sequence[BaseTool],
     *,
+    system_prompt: str,
     terminal_tools: Sequence[type[BaseModel]] = (),
     max_steps: int = MAX_AGENT_STEPS,
-    system_prompt: str | None = None,
     checkpointer=None,
 ):
     """Compile the agent graph for one set of tools (eval or production)."""

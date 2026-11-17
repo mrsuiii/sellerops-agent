@@ -25,8 +25,7 @@ src/sellerops/
 web/          # plain HTML/CSS/JS storefront served by the store API
 data/         # tasks, SFT data, answer keys, store catalog snapshot
 scripts/      # dataset generation, catalog import, evaluation CLI
-notebooks/    # baseline and SFT notebooks (Colab)
-results/      # evaluation and training summaries (weights are gitignored)
+results/      # evaluation outputs (created on demand)
 docs/         # deep-dive guides
 tests/
 ```
@@ -114,7 +113,7 @@ It runs as a non-root user and exposes a health check at `/api/health`.
 - [AGENT_WALKTHROUGH.md](AGENT_WALKTHROUGH.md): router/action graph walkthrough
 - [src/sellerops/evaluation/README.md](src/sellerops/evaluation/README.md): evaluation harness
 - [docs/episode-replay-and-verification.md](docs/episode-replay-and-verification.md): message conversion, snapshots, replay, outcome verifier
-- [docs/sft-training.md](docs/sft-training.md): full SFT on Colab
+- Qwen 0.5B SFT artifacts (weights, notebooks, results) were moved out of this repo to `../../archive/sellerops-sft-0.5b/` on 17 Nov 2026.
 - [web/README.md](web/README.md): Kala Studio store and API
 - [data/DATASET_CARD.md](data/DATASET_CARD.md): dataset
 - [PLAN.md](PLAN.md): learning plan and milestones

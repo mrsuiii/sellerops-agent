@@ -4,15 +4,17 @@ Konteks untuk sesi Claude Code (termasuk lewat T3 Code). Ringkasan ini disusun
 dari riwayat diskusi project di aplikasi Claude (6–17 November 2026). Bahasa
 kerja: **Bahasa Indonesia**.
 
-Baca juga sebelum mengubah kode: `../../TARGET.md` (sasaran, diperbarui
+Baca dulu **`HANDOFF.md`** (status terakhir + langkah berikutnya), lalu
+`../../TARGET.md` (sasaran, diperbarui
 16 Nov 2026), `PLAN.md` (session berikutnya: **A1 — chat model, tool, dan
 agent graph minimal**), `../../AGENTS.md`, bagian terbaru `../../LEARNING_LOG.md`,
 dan `README.md`. Versi lama TARGET/PLAN ada di `../../archive/`.
 
 ## Tujuan
 
-- Repo ini adalah **portofolio all-in-one** Nigka: simulator e-commerce
-  deterministik, evaluation harness, SFT Qwen2.5-0.5B, dan demo toko fullstack.
+- Repo ini adalah **portofolio all-in-one** Nigka: agent seller/buyer di atas
+  LangGraph + Claude API, simulator e-commerce multi-turn, evaluation harness,
+  dan demo toko fullstack (Kala Studio). Jalur SFT Qwen 0.5B sudah diarsipkan.
 - Nigka ingin **belajar membangun agent yang robust** dengan menyusunnya sendiri
   di atas LangGraph/LangChain.
 
@@ -40,16 +42,17 @@ dan `README.md`. Versi lama TARGET/PLAN ada di `../../archive/`.
 - Sebelum memakai parameter `ChatAnthropic` (effort, caching, fallback) atau
   API LangGraph, cek dokumentasi versi yang terpasang.
 - Lokasi kode: `src/sellerops/harness/` (agent: `models.py`, `state.py`,
-  `graph.py`, `prompts.py`; `harness/tools/` hanya untuk tool production:
+  `graph.py`; `harness/tools/` hanya untuk tool production:
   seller di Track C, `store.py` Kala Studio di B1). Khusus eval ada di
   `evaluation/`: `sim_tools.py` (tool simulator via EpisodeService) dan
-  `terminal_tools.py` (kontrak `final`/`ask_user`). Simulator
+  `terminal_tools.py` (kontrak `final`/`ask_user`), `prompts.py` (system
+  prompt task simulator). Harness tidak punya prompt default:
+  `system_prompt` wajib dioper ke `build_agent_graph`. Simulator
   (`SellerEnvironment`, `EpisodeService`) ada di `src/sellerops/simulator/`,
   khusus eval dan pembuatan dataset.
   `harness` tidak pernah mengimpor `evaluation`; tool dan `terminal_tools`
-  diterima graph sebagai argumen, `src/sellerops/workflows/`
-  (workflow), `src/sellerops/baseline/` (pipeline LangGraph lama router Qwen →
-  SFT, hanya untuk reproduksi baseline 0/30; jangan dikembangkan).
+  diterima graph sebagai argumen. Workflow di `src/sellerops/workflows/`.
+  `src/sellerops/baseline/` dan simulator lama dijadwalkan dihapus (HANDOFF §2).
 
 ## Kontrak belajar (penting)
 
@@ -89,31 +92,29 @@ Dokumen terkait (artifact di aplikasi Claude):
 - Spec seller agent: https://claude.ai/artifact/Wond21GKwf7ui7xdgcSHSa
 - Plan agent umum + RAG produk: https://claude.ai/artifact/77zTgEAD9uVorNcST3zVDj
 
-## Status saat ini (16 Nov 2026)
+## Status saat ini (17 Nov 2026)
 
-- Pipeline lama: router (Qwen 0.5B) memilih satu rute/tool lalu kode jalan
-  sekali, tanpa loop. E2E dev eval **0/30** karena router base-model
-  mengeluarkan teks pada `act`, sehingga model aksi SFT tidak pernah dipanggil.
-  SFT sendiri: schema validity 17.9% → 100%, exact action 0% → 70.5% (dev).
-- Rencana: ganti agent 0.5B dengan model kuat via API; 0.5B tetap sebagai
-  baseline (mungkin dapat use case sendiri nanti).
-- **Kala Studio** (PR #2): demo toko fashion, FastAPI + HTML/CSS/JS polos,
-  snapshot katalog DummyJSON dalam IDR, recommender BM25 di
-  `POST /api/recommend`. Belum disambungkan sebagai tool agent
-  `recommend_products`.
-- **Production-readiness** (PR #3, #4): packaging `pyproject.toml`, Dockerfile,
-  settings berbasis env (`sellerops.settings.get_settings()`), structured
-  logging, hardening store API.
-- **Provider LLM** (PR #5, #6): pilih lewat `SELLEROPS_LLM_PROVIDER`:
-  `anthropic` (default, `ANTHROPIC_API_KEY`, `SELLEROPS_LLM_MODEL`,
-  `SELLEROPS_LLM_EFFORT`) atau `openai_compatible` (NVIDIA build.nvidia.com via
-  `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`). Baru konfigurasi; agent
-  graph belum disusun (bagian Nigka).
-- 16 Nov 2026: adapter Anthropic tulis tangan dibuat di
-  `src/sellerops/harness/adapters/` (dengan test). Sejak keputusan stack
-  17 Nov akan digantikan `ChatAnthropic` dan dihapus di Session A1.
-- 17 Nov 2026: `src/sellerops/agent/` dipindah ke `src/sellerops/baseline/`
-  (`ModelAdapter` lama → `LocalHFModel`).
+Detail lengkap dan langkah berikutnya: **`HANDOFF.md`**.
+
+- Pipeline lama Qwen 0.5B (router → SFT, e2e dev 0/30) **tidak dipakai lagi**.
+  Artefak fine-tune (bobot, notebooks, results, data SFT) sudah dipindah ke
+  `../../archive/sellerops-sft-0.5b/`. Kode `baseline/` dan simulator lama
+  masih ada dan **akan dihapus** (arahan user 17 Nov, lihat HANDOFF §2).
+- Rencana berikutnya: simulator baru **multi-turn untuk domain seller**
+  (katalog Kala Studio + order sintetis + review), dengan user simulator
+  (`ScriptedUser` untuk test, `LLMUser` untuk eval). Ini menggantikan task
+  SellerOps lama dan menjadi dunia eval Track A dan C.
+- Scaffold agent sudah ada: `harness/models.py` (`ChatAnthropic`),
+  `harness/state.py` + `harness/graph.py` (TODO A1 untuk Nigka). Adapter
+  Anthropic tulis tangan sudah dihapus.
+- **Kala Studio** (PR #2): FastAPI + HTML/CSS/JS, katalog DummyJSON dalam IDR,
+  recommender BM25 di `POST /api/recommend`; keranjang masih di browser
+  (`localStorage`). Belum ada tool agent.
+- **Production-readiness** (PR #3, #4): `pyproject.toml`, Dockerfile, settings
+  env (`sellerops.settings.get_settings()`), structured logging.
+- **Provider LLM** (PR #5, #6): `SELLEROPS_LLM_PROVIDER` = `anthropic`
+  (default) atau `openai_compatible` (NVIDIA; `langchain-openai` belum
+  terpasang).
 - Kalau memakai Claude: aktifkan prompt caching untuk system prompt dan tools
   (`cache_control` lewat `ChatAnthropic`), dan cek `cache_read_input_tokens` di
   `usage_metadata`.

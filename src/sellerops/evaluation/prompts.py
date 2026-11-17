@@ -1,7 +1,11 @@
-"""System prompt and task message for the simulator agent (first draft).
+"""System prompt and task message for SellerOps simulator eval tasks.
 
-Edit freely; keep the system prompt free of per-task or time-varying text so
-the prompt-cache prefix stays identical across tasks.
+Eval-only: the rules below mirror what ``verify_outcome`` checks (tool
+evidence order, discount cap, structured ``final`` / ``ask_user`` instead of
+plain text). A production chat agent gets its own prompt next to its tools.
+
+Keep the system prompt free of per-task or time-varying text so the
+prompt-cache prefix stays identical across tasks.
 """
 
 from __future__ import annotations
@@ -10,7 +14,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage
 
-SYSTEM_PROMPT = """\
+SIM_SYSTEM_PROMPT = """\
 You are SellerOps, an assistant for an e-commerce seller. You answer one task \
 at a time using the tools provided.
 
