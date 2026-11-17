@@ -243,7 +243,11 @@ Status: [ ]
   Smoke run pertama (17 Nov, Haiku 5.5, scripted, k=1): 8/10.
 - [x] Token (input/output/cache), latency p50/p95, rata-rata tool call dan
   giliran per run (`UsageMetadataCallbackHandler`); biaya dalam $ belum.
-- [ ] Run penuh `--user llm --k 3 --judge`.
+- [x] Run penuh `--user llm --k 3 --judge` (17 Nov, Haiku 5.5, judge
+  `nvidia/nemotron-3-ultra-550b-a55b`): pass@1 0.83, pass@3 0.90, pass^3 0.80;
+  gagal di caption (3/3, `caption_flow`) dan slow_movers (2/3, `answer`);
+  judge 24/25, 0 error. `results/evaluation/20261117-155835-*`.
+  Lihat kegagalan: `python scripts/show_failures.py [--judge]`.
 - [ ] Error analysis minimal 5 kegagalan (ala Hamel Husain) dari trace
   LangSmith; failure penting jadi regression test.
 - [ ] Opsional: model NVIDIA via `ChatOpenAI` + `base_url` sebagai pembanding
@@ -334,6 +338,14 @@ Status: [ ]
   revert. Checkpointer wajib agar approval bisa ditunda.
 - [ ] LLM hanya mengisi node usulan; alur, approval, dan penulisan data
   dikendalikan graph.
+
+Keputusan (17 Nov 2026, Nigka):
+- Approval memakai graph dengan `interrupt()` (bukan endpoint saja), supaya
+  reject + feedback bisa lanjut ke node revisi LLM.
+- Maksimal 5 kali reject; setelah reject ke-5 graph berhenti dengan
+  `stop_reason="max_rejections"` (seller menolak terus-menerus).
+- Backend (DB + service) tetap sumber kebenaran: status proposal, versi caption,
+  audit log, revert. Node graph hanya memanggil service; revert di luar graph.
 
 Bagian inti untuk user: desain state, node/edge approval, dan audit log.
 

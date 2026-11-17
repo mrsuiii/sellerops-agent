@@ -66,8 +66,12 @@ call → `no_tool_call` (eval) atau `answer` (chat). 94 test lolos, 0 skip.
    hasil di `results/evaluation/20261117-154812-*`. Dua kegagalan untuk RCA
    (bagian Nigka): `slow-movers-tas-tidak-laku` (answer) dan
    `caption-dress-pea` (mengubah `tags` padahal penjual hanya minta
-   deskripsi, tanpa bertanya). Berikutnya: run penuh `--user llm --k 3
-   --judge`, error analysis ≥ 5 kegagalan, failure penting → regression test.
+   deskripsi, tanpa bertanya).
+   **Run penuh** (`--user llm --k 3 --judge`): pass@1 0.83, pass^3 0.80; 5
+   kegagalan verifier (caption 3, slow_movers 2) + 1 kegagalan judge
+   (sales_drop t2: klaim "Pampi Shoes naik" padahal turun). Berikutnya: error
+   analysis (bagian Nigka) dengan `scripts/show_failures.py`, failure penting
+   → regression test.
 2. Judge `message` sudah NVIDIA (`judge.py`, rubrik `seller-message-v1`).
    Model yang responsif: `nvidia/nemotron-3-ultra-550b-a55b` (set
    `SELLEROPS_JUDGE_MODEL`); `meta/muse-glimmer-30b` timeout. Belum divalidasi
