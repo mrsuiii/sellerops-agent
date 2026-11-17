@@ -1,0 +1,112 @@
+{
+ "trials": 30,
+ "tasks": 10,
+ "k": 3,
+ "errors": 0,
+ "overall": {
+  "pass@1": 0.8333333333333334,
+  "pass@3": 0.9,
+  "pass^1": 0.8333333333333334,
+  "pass^3": 0.8
+ },
+ "by_family": {
+  "caption": {
+   "tasks": 1,
+   "pass@1": 0.33333333333333337,
+   "pass@3": 1.0,
+   "pass^1": 0.3333333333333333,
+   "pass^3": 0.0
+  },
+  "restock": {
+   "tasks": 1,
+   "pass@1": 1.0,
+   "pass@3": 1.0,
+   "pass^1": 1.0,
+   "pass^3": 1.0
+  },
+  "review_insight": {
+   "tasks": 1,
+   "pass@1": 0.0,
+   "pass@3": 0.0,
+   "pass^1": 0.0,
+   "pass^3": 0.0
+  },
+  "sales_drop": {
+   "tasks": 1,
+   "pass@1": 1.0,
+   "pass@3": 1.0,
+   "pass^1": 1.0,
+   "pass^3": 1.0
+  },
+  "sales_spike": {
+   "tasks": 1,
+   "pass@1": 1.0,
+   "pass@3": 1.0,
+   "pass^1": 1.0,
+   "pass^3": 1.0
+  },
+  "sales_summary": {
+   "tasks": 2,
+   "pass@1": 1.0,
+   "pass@3": 1.0,
+   "pass^1": 1.0,
+   "pass^3": 1.0
+  },
+  "slow_movers": {
+   "tasks": 1,
+   "pass@1": 1.0,
+   "pass@3": 1.0,
+   "pass^1": 1.0,
+   "pass^3": 1.0
+  },
+  "top_category": {
+   "tasks": 1,
+   "pass@1": 1.0,
+   "pass@3": 1.0,
+   "pass^1": 1.0,
+   "pass^3": 1.0
+  },
+  "top_products": {
+   "tasks": 1,
+   "pass@1": 1.0,
+   "pass@3": 1.0,
+   "pass^1": 1.0,
+   "pass^3": 1.0
+  }
+ },
+ "failed_checks": {
+  "answer": 3,
+  "finished": 2
+ },
+ "stop_reasons": {
+  "final": 28,
+  "no_tool_call": 2
+ },
+ "latency_s": {
+  "p50": 18.962,
+  "p95": 48.764
+ },
+ "avg_tool_calls": 1.17,
+ "avg_agent_turns": 1.57,
+ "asked_when_needed": [
+  12,
+  12
+ ],
+ "usage_total": {
+  "input_tokens": 274517,
+  "output_tokens": 25180,
+  "cache_read": 4384,
+  "cache_creation": 0
+ },
+ "usage_per_trial": {
+  "input_tokens": 9150.6,
+  "output_tokens": 839.3,
+  "cache_read": 146.1,
+  "cache_creation": 0.0
+ },
+ "judge": {
+  "scored": 25,
+  "pass": 24,
+  "errors": 0
+ }
+}

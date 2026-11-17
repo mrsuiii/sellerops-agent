@@ -216,25 +216,29 @@ Definition of done:
 
 ### Session A2 — Robustness: error, retry, timeout
 
-Status: [ ]
+Status: [x] (17 Nov 2026; ditulis assistant atas permintaan eksplisit Nigka).
+Peta error lengkap di `harness/errors.py`.
 
-- [ ] Tool error dikembalikan sebagai `ToolMessage(status="error")`
-  terstruktur dari node `tools`, bukan exception.
-- [ ] Retry API (rate limit, overload) lewat `RetryPolicy` pada node `model`
-  dan retry bawaan client, terpisah dari retry perilaku model;
-  `with_fallbacks` untuk model cadangan.
-- [ ] Timeout per call dan per episode; budget token.
-- [ ] Test adversarial: tool tidak ada, argumen invalid, produk tidak ada,
-  proposal caption melanggar batas.
-
-Bagian inti untuk user: memetakan jenis error ke retry / lanjut / berhenti dan
-menaruhnya di node, edge, atau `RetryPolicy` yang tepat.
-
-DoD: setiap jenis error punya perilaku eksplisit dan test.
+- [x] Error tool → `ToolMessage(status="error")` berisi `{"ok": false,
+  "error": {"code", "message"}}` (`unknown_tool`, `invalid_arguments`,
+  `tool_error`, `terminal_not_alone`), bentuk sama dengan error bisnis.
+- [x] Retry API: SDK `max_retries=2` + `RetryPolicy` (2 percobaan, backoff)
+  pada node `model`/`summarize` dengan `is_transient_error` (429/408/409/5xx/
+  529/timeout/jaringan); 4xx lain gagal cepat. Node `tools` tidak di-retry
+  (bisa menulis). `with_fallbacks` ke `SELLEROPS_LLM_FALLBACK_MODELS`.
+- [x] Timeout per call (client), budget per giliran: `max_turn_tokens`,
+  `max_turn_seconds` (`token_budget` / `time_budget`), dicek setelah semua
+  tool call terjawab; prompt caching otomatis hanya untuk ChatAnthropic;
+  `repair_tool_pairs` untuk thread yang lanjut setelah `final`.
+- [x] Test adversarial (`tests/harness/test_robustness.py`): tool tidak ada,
+  argumen invalid, produk tidak ada, caption melewati batas lalu pulih,
+  retry, gagal cepat, fallback, budget.
+- [x] Runtime context: `AgentContext` (`user_id`, `store_id`) lewat
+  `context_schema`; tool dengan `runtime: ToolRuntime` mendapat context.
 
 ### Session A3 — Eval multi-turn seller agent
 
-Status: [ ]
+Status: [x] (17 Nov 2026)
 
 - [x] CLI eval (`scripts/evaluate_seller.py`, `make eval-smoke` / `make eval`;
   logika di `evaluation/seller_eval.py`): episode + graph + `thread_id` per
@@ -248,10 +252,17 @@ Status: [ ]
   gagal di caption (3/3, `caption_flow`) dan slow_movers (2/3, `answer`);
   judge 24/25, 0 error. `results/evaluation/20261117-155835-*`.
   Lihat kegagalan: `python scripts/show_failures.py [--judge]`.
-- [ ] Error analysis minimal 5 kegagalan (ala Hamel Husain) dari trace
-  LangSmith; failure penting jadi regression test.
-- [ ] Opsional: model NVIDIA via `ChatOpenAI` + `base_url` sebagai pembanding
-  ketiga.
+- [x] Error analysis 5 akar masalah (`docs/error-analysis-2026-11-17.md`):
+  caption mengubah field tak diminta, klarifikasi tidak lengkap, tren dikarang
+  (→ `compare_to_previous` di tool), bug `run_id` runner, kontrak `final.data`
+  (→ validator bentuk). Dev: pass@1 0.83 → **1.00**, pass^3 0.80 → **1.00**
+  (`results/evaluation/20261117-163243-*`). Regression:
+  `tests/evaluation/test_eval_regressions.py`.
+- [x] Pembanding NVIDIA `nemotron-3-ultra-550b-a55b` sebagai agent
+  (`--agent-provider openai_compatible`): pass@1 0.83, pass^3 0.80, p50 19 s.
+- [ ] Validasi judge dengan label manusia (`scripts/judge_labels.py`):
+  butuh label Nigka.
+- [ ] Angka final split test (`--allow-test`), sekali, untuk laporan.
 
 Bagian inti untuk user: membaca trajectory gagal dan menulis RCA.
 
@@ -261,20 +272,22 @@ belum disentuh.
 
 ### Session A4 — Context, memory, trajectory replay
 
-Status: [ ]
+Status: [x] (17 Nov 2026), kecuali memory `Store` (opsional).
 
-- [ ] Context budget dengan node `summarize` sendiri (dipicu edge saat token
-  melewati budget; pesan lama diganti lewat `RemoveMessage`).
-- [ ] Checkpointer `SqliteSaver`; trajectory diambil dari `get_state_history`
-  + trace LangSmith, diekspor ke JSONL (task, model, messages, tool calls,
-  observations, hasil evaluator, latency, usage).
-- [ ] Replay / time travel dari `checkpoint_id` pada environment version yang
-  sama.
-- [ ] Opsional: memory preferensi lewat LangGraph `Store`, di-load hanya saat
-  relevan.
+- [x] Node `summarize`: dipicu di awal giliran saat input token panggilan
+  terakhir ≥ `max_context_tokens`; pesan lama diringkas lalu dihapus dengan
+  `RemoveMessage` (potongan tidak pernah memisahkan tool call dari hasilnya);
+  ringkasan dikirim setelah system prompt.
+- [x] `SqliteSaver` (`harness/trajectory.py`), ekspor trajectory (pesan, tool
+  call, usage, timeline checkpoint dari `get_state_history`); eval menyimpan
+  pesan per percakapan dan, dengan `--save-threads`, seluruh thread.
+- [x] Replay dari `checkpoint_id` (`scripts/replay_eval_thread.py`): episode
+  simulator dibangun ulang dari tool call sebelum checkpoint; kegagalan
+  caption baseline direproduksi 2/2.
+- [ ] Opsional: memory preferensi lewat LangGraph `Store`.
 
-DoD: satu failed trajectory bisa direproduksi; satu task multi-turn memakai
-ringkasan dengan benar.
+DoD: satu failed trajectory bisa direproduksi (caption); ringkasan multi-turn
+teruji (`tests/harness/test_context.py`).
 
 ---
 

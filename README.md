@@ -76,9 +76,10 @@ Secrets and settings come from environment variables; see
 | --- | --- |
 | `LANGSMITH_API_KEY` | optional LangSmith tracing |
 | `SELLEROPS_JUDGE_MODEL` | optional LLM judge for final messages: model id on the NVIDIA endpoint (uses `LLM_API_KEY`, `LLM_BASE_URL`) |
-| `SELLEROPS_LLM_PROVIDER` | hosted model provider: `anthropic` (default) or `openai_compatible` (adapter not wired yet) |
+| `SELLEROPS_LLM_PROVIDER` | hosted model provider: `anthropic` (default) or `openai_compatible` (NVIDIA by default) |
 | `ANTHROPIC_API_KEY` | Claude API key, read by the `anthropic` SDK |
 | `SELLEROPS_LLM_MODEL`, `SELLEROPS_LLM_EFFORT` | Claude model id (default `claude-haiku-5-5`) and effort (default `medium`) |
+| `SELLEROPS_LLM_FALLBACK_MODELS` | comma list of fallback models (same provider), tried when the primary call fails |
 | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | OpenAI-compatible endpoint (default base URL: NVIDIA `integrate.api.nvidia.com/v1`) |
 | `SELLEROPS_PROJECT_ROOT` | repo root (needed for non-editable installs, e.g. Docker) |
 | `SELLEROPS_DATA_DIR`, `SELLEROPS_WEB_DIR`, `SELLEROPS_RESULTS_DIR`, `SELLEROPS_CATALOG_PATH` | override data locations |

@@ -74,6 +74,25 @@ def period_bounds(period: str) -> tuple[date, date]:
     return AS_OF - timedelta(days=first), AS_OF - timedelta(days=last)
 
 
+PREVIOUS_PERIOD = {"last_7_days": "previous_7_days", "last_30_days": "previous_30_days"}
+
+
+def previous_period(period: str) -> str:
+    """The equal-length window right before ``period`` (for ``compare_to_previous``)."""
+    if period not in PREVIOUS_PERIOD:
+        raise ToolError("invalid_compare", "compare_to_previous works with last_7_days or last_30_days")
+    return PREVIOUS_PERIOD[period]
+
+
+def change_pct(current: int, previous: int) -> float | None:
+    """Percent change rounded to 0.1; None when the previous value is 0."""
+    return None if previous == 0 else round((current - previous) / previous * 100, 1)
+
+
+def trend(current: int, previous: int) -> str:
+    return "up" if current > previous else "down" if current < previous else "flat"
+
+
 def caption_version(product: dict[str, Any]) -> str:
     """Hash of the editable caption fields; a proposal is stale once it changes."""
     text = canonical_json({field: product[field] for field in CAPTION_FIELDS})
@@ -120,7 +139,20 @@ class SellerStore:
 
     # --------------------------------------------------------------- tools
 
-    def sales_summary(self, period: str, group_by: str | None = None) -> dict[str, Any]:
+    def sales_summary(self, period: str, group_by: str | None = None,
+                      compare_to_previous: bool = False) -> dict[str, Any]:
+        result = self._sales_summary(period, group_by)
+        if not compare_to_previous:
+            return result
+        before = self._sales_summary(previous_period(period), None)
+        result["compared_with"] = before["period"]
+        for key in ("revenue_idr", "orders", "units"):
+            result[f"previous_{key}"] = before[key]
+            result[f"{key.removesuffix('_idr')}_change_pct"] = change_pct(result[key], before[key])
+        result["trend"] = trend(result["revenue_idr"], before["revenue_idr"])
+        return result
+
+    def _sales_summary(self, period: str, group_by: str | None) -> dict[str, Any]:
         orders = self._orders_in(period)
         revenue = sum(o["total_idr"] for o in orders)
         units = sum(i["quantity"] for o in orders for i in o["items"])
@@ -158,13 +190,16 @@ class SellerStore:
         return result
 
     def product_performance(self, period: str, sort: str = "units_desc", limit: int = 5,
-                            category: str | None = None, audience: str | None = None) -> dict[str, Any]:
+                            category: str | None = None, audience: str | None = None,
+                            compare_to_previous: bool = False) -> dict[str, Any]:
         if sort not in ("units_desc", "units_asc", "revenue_desc", "revenue_asc"):
             raise ToolError("invalid_sort", "sort must be units_desc, units_asc, revenue_desc or revenue_asc")
         if not 1 <= limit <= 54:
             raise ToolError("invalid_limit", "limit must be between 1 and 54")
         self._check_category(category)
         units = self.units_by_product(period)
+        compared = previous_period(period) if compare_to_previous else None
+        before = self.units_by_product(compared) if compared else {}
         rows = []
         for pid, product in self._products.items():
             if category and product["category"] != category:
@@ -180,11 +215,20 @@ class SellerStore:
                 "revenue_idr": units[pid] * product["final_price_idr"],
                 "stock": self.data.inventory[pid]["stock"],
             })
+            if compared:
+                previous_units = before[pid]
+                rows[-1].update(previous_units=previous_units, units_change=units[pid] - previous_units,
+                                previous_revenue_idr=previous_units * product["final_price_idr"],
+                                revenue_change_pct=change_pct(units[pid], previous_units),
+                                trend=trend(units[pid], previous_units))
         metric, direction = sort.rsplit("_", 1)
         metric = "units" if metric == "units" else "revenue_idr"
         sign = -1 if direction == "desc" else 1
         rows.sort(key=lambda r: (sign * r[metric], r["product_id"]))
-        return {"period": self._period(period), "sort": sort, "total_matching": len(rows), "products": rows[:limit]}
+        result = {"period": self._period(period), "sort": sort, "total_matching": len(rows), "products": rows[:limit]}
+        if compared:
+            result["compared_with"] = self._period(compared)
+        return result
 
     def inventory_rows(self, target_days: int = DEFAULT_RESTOCK_TARGET_DAYS) -> list[dict[str, Any]]:
         units = self.units_by_product("last_30_days")

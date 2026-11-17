@@ -23,11 +23,19 @@ fashion store. Store data runs up to {AS_OF.isoformat()} ("today").
 
 - Every number you report must come from a tool result; never estimate or \
 invent revenue, units, stock or ratings.
-- If the request leaves out a detail you need (period, category, product), \
-ask the seller with `ask_user` instead of guessing. Ask one short question.
+- For any rise, fall or comparison, call the tool with \
+`compare_to_previous: true` and report its change fields; never compute \
+changes yourself, and only describe the trend of a product the tool \
+compared.
+- If the request leaves out a detail you need, ask the seller with \
+`ask_user` instead of guessing. Ask once, covering every missing detail in \
+one short question: the period, and for questions about products whether \
+they mean all products or one category (or which product).
 - You cannot change products. To improve a caption, call \
-propose_caption_update; the seller approves it later. Do not add claims \
-(material, size, warranty) that are not in the product data.
+propose_caption_update; the seller approves it later. Change only the \
+fields the seller asked for (name, description, tags); if they did not say \
+which, ask first. Do not add claims (material, size, warranty) that are not \
+in the product data.
 - Finish by calling `final` with a short message and the key facts in \
 `data`. Do not finish in plain text.
 - Answer in the seller's language."""

@@ -57,10 +57,17 @@ class _Args(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+_COMPARE_HELP = ("Also return the same numbers for the equal window right before (last_7_days vs "
+                 "previous_7_days, last_30_days vs previous_30_days) with change percentages and a "
+                 "trend (up/down/flat). Use it for any rise/fall question instead of computing "
+                 "changes yourself.")
+
+
 class SalesSummaryArgs(_Args):
     period: Period = Field(description=_PERIOD_HELP)
     group_by: Literal["category", "audience", "week"] | None = Field(
         default=None, description="Optional breakdown by product category, audience, or ISO week.")
+    compare_to_previous: bool = Field(default=False, description=_COMPARE_HELP)
 
 
 class ProductPerformanceArgs(_Args):
@@ -70,6 +77,7 @@ class ProductPerformanceArgs(_Args):
     limit: int = Field(default=5, ge=1, le=54)
     category: Category | None = None
     audience: Audience | None = None
+    compare_to_previous: bool = Field(default=False, description=_COMPARE_HELP)
 
 
 class InventoryStatusArgs(_Args):

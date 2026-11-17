@@ -1,4 +1,4 @@
-# HANDOFF — SellerOps Agent (17 November 2026, sesi 2)
+# HANDOFF — SellerOps Agent (17 November 2026, sesi 3)
 
 Catatan serah-terima antar sesi / antar ADE. Baca ini dulu, lalu `CLAUDE.md`
 (konteks + kontrak belajar) dan `PLAN.md` (rencana per session). Bahasa kerja:
@@ -59,32 +59,37 @@ dipanggil sendirian dengan argumen valid, selain itu jadi
 `ToolMessage(status="error")` supaya model bisa memperbaiki; teks tanpa tool
 call → `no_tool_call` (eval) atau `answer` (chat). 94 test lolos, 0 skip.
 
-## 2. Langkah berikutnya
+## 2. Status dan langkah berikutnya
 
-1. **A3 berjalan.** `scripts/evaluate_seller.py` (`make eval-smoke`,
-   `make eval`). Smoke run 17 Nov (Haiku 5.5, `ScriptedUser`, k=1): **8/10**;
-   hasil di `results/evaluation/20261117-154812-*`. Dua kegagalan untuk RCA
-   (bagian Nigka): `slow-movers-tas-tidak-laku` (answer) dan
-   `caption-dress-pea` (mengubah `tags` padahal penjual hanya minta
-   deskripsi, tanpa bertanya).
-   **Run penuh** (`--user llm --k 3 --judge`): pass@1 0.83, pass^3 0.80; 5
-   kegagalan verifier (caption 3, slow_movers 2) + 1 kegagalan judge
-   (sales_drop t2: klaim "Pampi Shoes naik" padahal turun). Berikutnya: error
-   analysis (bagian Nigka) dengan `scripts/show_failures.py`, failure penting
-   → regression test.
-2. Judge `message` sudah NVIDIA (`judge.py`, rubrik `seller-message-v1`).
-   Model yang responsif: `nvidia/nemotron-3-ultra-550b-a55b` (set
-   `SELLEROPS_JUDGE_MODEL`); `meta/muse-glimmer-30b` timeout. Belum divalidasi
-   dengan label manual.
-3. A2 (robustness: `RetryPolicy`, `with_fallbacks`, timeout per episode,
-   budget token): sebagian sudah dari A1 (error tool → `ToolMessage`, retry
-   SDK, timeout per call); sisanya bagian Nigka.
-4. Runtime context (`user_id` / `store_id`) + client production untuk tool
-   seller, lalu RAG.
+**Track A selesai** (A1–A4; Nigka meminta assistant mengerjakan semuanya):
 
-Bug yang ditemukan eval: key `run_id` di `metadata` config membuat giliran
-kedua dst. no-op di LangGraph (state lama dikembalikan). Runner memakai
-`eval_run_id`; ada regression test.
+- A2 robustness: `harness/errors.py` (peta error), `RetryPolicy` + SDK retry,
+  `with_fallbacks` (`SELLEROPS_LLM_FALLBACK_MODELS`), budget token/waktu per
+  giliran, error tool berkode, `repair_tool_pairs`, provider NVIDIA untuk
+  agent, prompt caching otomatis hanya untuk Claude.
+- Runtime context: `AgentContext` (`user_id`, `store_id`) → `ToolRuntime`.
+- A3 eval: error analysis `docs/error-analysis-2026-11-17.md` (5 akar
+  masalah). Dev Haiku 5.5 (`LLMUser`, k=3): pass@1 0.83 → **1.00**, pass^3
+  0.80 → **1.00**; judge 29/30. Pembanding Nemotron 3 Ultra: 0.83 / 0.80.
+  Perbaikan: aturan prompt (field caption, klarifikasi lengkap, tren dari
+  tool), `compare_to_previous` di tool, validator bentuk `final.data`.
+- A4: node `summarize`, `SqliteSaver`, ekspor trajectory, replay
+  (`scripts/replay_eval_thread.py`).
+
+Sisa / berikutnya:
+
+1. **Butuh Nigka:** labeli 25–50 percakapan untuk validasi judge
+   (`python scripts/judge_labels.py export` → isi `human_*` → `score`).
+2. Angka split test sekali untuk laporan (`--allow-test`), jangan untuk tuning.
+3. Temuan terbuka: prosa `message` kadang melebih-lebihkan agregat (3 kasus
+   judge); `find_product(name)` untuk model yang lebih lemah; memory `Store`
+   (opsional A4).
+4. Track C: backend C3 (DB proposal/versi/audit + service, desain di diskusi
+   17 Nov, keputusan di PLAN C3) lalu graph approval (bagian Nigka); service
+   layer + client production C2.
+
+Bug penting yang ditemukan eval: key `run_id` di `metadata` config membuat
+giliran kedua dst. no-op di LangGraph. Runner memakai `eval_run_id`.
 
 ## 3. Hal yang perlu diingat
 
