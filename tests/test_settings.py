@@ -27,7 +27,7 @@ def test_defaults_point_at_repository():
     assert settings.log_level == "INFO" and settings.log_format == "text"
     assert settings.cors_origins == ()
     assert settings.llm_provider == "anthropic"
-    assert settings.llm_model == "claude-opus-5-5" and settings.llm_effort == "medium"
+    assert settings.llm_model == "claude-haiku-5-5" and settings.llm_effort == "medium"
 
 
 def test_env_overrides_resolve_relative_to_root(monkeypatch, tmp_path):

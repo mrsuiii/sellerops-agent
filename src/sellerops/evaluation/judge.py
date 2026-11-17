@@ -1,10 +1,13 @@
-"""Optional Gemini prose judge. No SDK dependency and no hidden retries."""
+"""Optional Gemini prose judge. No SDK dependency and no hidden retries.
+
+The rubric below still describes the old offer/discount tasks; it needs a seller
+analytics rubric before it is wired into the multi-turn eval.
+"""
 
 import json
 import os
 import re
 from hashlib import sha256
-from time import perf_counter
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -95,37 +98,3 @@ class GeminiJudge:
         return {"status": "scored", "pass": all(decision[k] for k in FIELDS), **decision,
                 "model_version": payload.get("modelVersion"), "usage": payload.get("usageMetadata"),
                 "error": None}
-
-
-def with_judge(target, judge, references):
-    """Judge after the agent stops; references never enter the agent target."""
-    from .evaluators import grade_episode
-
-    def run_episode(inputs):
-        output = target(inputs)
-        started = perf_counter()
-        try:
-            reference = references[inputs["task_id"]]
-            structured = grade_episode(reference["task"], output)
-            if structured["decision"] != "pass":
-                report = {"status": "skipped_structured_failure", "pass": None, "error": None}
-            else:
-                report = judge.assess(inputs, output, reference)
-        except JudgeError as error:
-            report = {"status": "error", "pass": None, "error": str(error)}
-        except Exception:
-            report = {"status": "error", "pass": None, "error": "Judge evaluation failed; inspect references/configuration"}
-        output["judge"] = {**judge.metadata, **report, "latency_seconds": perf_counter() - started}
-        output["answer_groundedness"] = "judged" if report["status"] == "scored" else report["status"]
-        return output
-
-    return run_episode
-
-
-def end_to_end_score(structured_pass, output):
-    if not structured_pass:
-        return 0
-    report = output.get("judge", {})
-    if report.get("status") != "scored" or type(report.get("pass")) is not bool:
-        return None
-    return int(report["pass"])

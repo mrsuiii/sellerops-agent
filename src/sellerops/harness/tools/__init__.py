@@ -4,6 +4,6 @@
 - ``store``: Kala Studio tools for the buyer agent (Track B), behind a
   ``StoreClient`` interface (in-process for tests, HTTP for production).
 
-Eval-only tools live in ``sellerops.evaluation`` (``sim_tools``,
+Eval-only tools live in ``sellerops.evaluation`` (``seller_tools``,
 ``terminal_tools``); this package must not import them.
 """

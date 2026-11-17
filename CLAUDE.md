@@ -31,6 +31,8 @@ dan `README.md`. Versi lama TARGET/PLAN ada di `../../archive/`.
   `with_fallbacks`, `interrupt()` + `Command(resume=...)`, `Store`, streaming.
 - Jawaban akhir `final` / `ask_user` berupa tool dengan skema Pydantic; edge
   mengakhiri graph saat tool itu dipanggil.
+- Model default: `claude-haiku-5-5`, effort `medium` (keputusan 17 Nov;
+  ganti lewat `SELLEROPS_LLM_MODEL` / `SELLEROPS_LLM_EFFORT`).
 - Model: `init_chat_model` → `ChatAnthropic` (`langchain-anthropic`) atau
   `ChatOpenAI` dengan `base_url` untuk NVIDIA (`langchain-openai`). Jangan
   memanggil SDK `anthropic` / `openai` langsung dari kode agent.
@@ -44,15 +46,17 @@ dan `README.md`. Versi lama TARGET/PLAN ada di `../../archive/`.
 - Lokasi kode: `src/sellerops/harness/` (agent: `models.py`, `state.py`,
   `graph.py`; `harness/tools/` hanya untuk tool production:
   seller di Track C, `store.py` Kala Studio di B1). Khusus eval ada di
-  `evaluation/`: `sim_tools.py` (tool simulator via EpisodeService) dan
-  `terminal_tools.py` (kontrak `final`/`ask_user`), `prompts.py` (system
-  prompt task simulator). Harness tidak punya prompt default:
-  `system_prompt` wajib dioper ke `build_agent_graph`. Simulator
-  (`SellerEnvironment`, `EpisodeService`) ada di `src/sellerops/simulator/`,
-  khusus eval dan pembuatan dataset.
-  `harness` tidak pernah mengimpor `evaluation`; tool dan `terminal_tools`
-  diterima graph sebagai argumen. Workflow di `src/sellerops/workflows/`.
-  `src/sellerops/baseline/` dan simulator lama dijadwalkan dihapus (HANDOFF §2).
+  `evaluation/`: `seller_tools.py` (enam tool seller via `SellerEpisode`),
+  `terminal_tools.py` (kontrak `final`/`ask_user`), `prompts.py`
+  (`SELLER_SYSTEM_PROMPT`), `seller_tasks.py`, `user_sim.py`
+  (`ScriptedUser`/`LLMUser`), `conversation.py` (loop giliran),
+  `seller_verifier.py`, `metrics.py`. Harness tidak punya prompt default:
+  `system_prompt` wajib dioper ke `build_agent_graph`. Simulator seller
+  (`generator.py`, `store.py`, `episode.py`) ada di `src/sellerops/simulator/`,
+  khusus eval; datanya di `data/seller_sim/` (`make sim`).
+  `harness` tidak pernah mengimpor `evaluation` atau `simulator`; tool dan
+  `terminal_tools` diterima graph sebagai argumen. Workflow di
+  `src/sellerops/workflows/`.
 
 ## Kontrak belajar (penting)
 
@@ -96,17 +100,16 @@ Dokumen terkait (artifact di aplikasi Claude):
 
 Detail lengkap dan langkah berikutnya: **`HANDOFF.md`**.
 
-- Pipeline lama Qwen 0.5B (router → SFT, e2e dev 0/30) **tidak dipakai lagi**.
-  Artefak fine-tune (bobot, notebooks, results, data SFT) sudah dipindah ke
-  `../../archive/sellerops-sft-0.5b/`. Kode `baseline/` dan simulator lama
-  masih ada dan **akan dihapus** (arahan user 17 Nov, lihat HANDOFF §2).
-- Rencana berikutnya: simulator baru **multi-turn untuk domain seller**
-  (katalog Kala Studio + order sintetis + review), dengan user simulator
-  (`ScriptedUser` untuk test, `LLMUser` untuk eval). Ini menggantikan task
-  SellerOps lama dan menjadi dunia eval Track A dan C.
-- Scaffold agent sudah ada: `harness/models.py` (`ChatAnthropic`),
-  `harness/state.py` + `harness/graph.py` (TODO A1 untuk Nigka). Adapter
-  Anthropic tulis tangan sudah dihapus.
+- Pipeline lama Qwen 0.5B (router → SFT, e2e dev 0/30) dan simulator
+  offer/diskon lama **sudah dihapus** dari repo (17 Nov); artefak di
+  `../../archive/sellerops-sft-0.5b/`, kode di git history.
+- **Simulator seller multi-turn** (Session C1) selesai: data sintetis 90 hari
+  dengan skenario tertanam, read model, 19 task (10 dev, 9 test frozen),
+  `ScriptedUser`/`LLMUser`, runner giliran, verifier. Lihat
+  `src/sellerops/evaluation/README.md`.
+- Agent: `harness/models.py` (`ChatAnthropic`), `harness/state.py` +
+  `harness/graph.py` (A1, diimplementasi assistant atas permintaan eksplisit
+  Nigka, 17 Nov). Semua test graph lolos; belum diuji dengan API sungguhan.
 - **Kala Studio** (PR #2): FastAPI + HTML/CSS/JS, katalog DummyJSON dalam IDR,
   recommender BM25 di `POST /api/recommend`; keranjang masih di browser
   (`localStorage`). Belum ada tool agent.

@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sellerops-agent"
 version = "0.1.0"
-description = "SellerOps: tool-using seller/buyer agents, deterministic simulator, evaluation harness and the Kala Studio demo store."
+description = "SellerOps: seller/buyer agents on LangGraph + Claude, a multi-turn seller simulator, evaluation harness and the Kala Studio demo store."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "mrsuiii" }]
-# Core package (schemas, simulator, dataset, episode service, verifier).
+# Core package (seller simulator, settings, store catalog).
 dependencies = ["python-dotenv>=1.0"]
 
 [project.optional-dependencies]
@@ -18,10 +18,8 @@ dependencies = ["python-dotenv>=1.0"]
 store = ["fastapi>=0.115", "uvicorn[standard]>=0.30"]
 # LangGraph agent runtime.
 agent = ["langgraph>=1.0", "langchain>=1.0", "langchain-core>=1.0", "langsmith>=0.4", "langchain-anthropic>=1.7.10", "anthropic>=2.8", "openai>=3.0"]
-# Evaluation harness (LangSmith runner, optional Gemini judge).
+# Evaluation harness (multi-turn runner, user simulators, verifier; optional Gemini judge).
 eval = ["sellerops-agent[agent]", "requests>=2.31"]
-# Local Hugging Face models (Qwen base / SFT checkpoint). Heavy: pulls in torch.
-local-model = ["torch>=2.4", "transformers>=4.45", "accelerate>=1.0"]
 dev = [
   "sellerops-agent[store,eval]",
   "pytest>=8",

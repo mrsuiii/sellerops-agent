@@ -1,9 +1,15 @@
-"""Deterministic SellerOps simulator (evaluation and dataset generation only).
+"""Seller simulator: synthetic orders, stock and reviews for Kala Studio (eval only).
 
-- ``environment``: ``SellerEnvironment`` with the synthetic catalog, inventory,
-  discount policies and the four read-only tools.
-- ``episode_state`` / ``episode_service``: one isolated environment per task,
-  tool history, step limit, snapshot and replay (input of ``verify_outcome``).
+- ``generator``: deterministic 90-day dataset with planted scenarios
+  (``python scripts/generate_seller_sim.py`` writes ``data/seller_sim/``).
+- ``store``: read model over that dataset (sales, performance, stock, reviews,
+  products) plus caption proposals; the logic behind the seller tools.
+- ``episode``: one isolated episode (own proposals, tool history) per eval run.
 
-Not used by production agents; ``sellerops.harness`` must not import it.
+The harness never imports this package; eval code passes tools built on it.
 """
+
+from .episode import SellerEpisode
+from .store import SellerStore, ToolError, load_store
+
+__all__ = ["SellerEpisode", "SellerStore", "ToolError", "load_store"]

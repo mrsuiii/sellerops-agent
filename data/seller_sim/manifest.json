@@ -1,0 +1,48 @@
+{
+ "data_version": "seller-sim-v1",
+ "seed": 20261117,
+ "as_of": "2026-11-15",
+ "start": "2026-08-18",
+ "days": 90,
+ "catalog_sha256": "4e25383d661739995e4376e848c7189da6964f389dc4ef571e5e362d239d67ea",
+ "counts": {
+  "orders": 2322,
+  "reviews": 297,
+  "products": 54
+ },
+ "scenarios": {
+  "spike": {
+   "product_id": "FS163",
+   "multiplier": 4.0,
+   "last_days": 7
+  },
+  "stockout": {
+   "product_id": "FS186",
+   "boost": 8.0,
+   "out_of_stock_last_days": 20
+  },
+  "low_stock": {
+   "product_id": "FS180",
+   "multiplier": 2.5,
+   "end_stock": 6
+  },
+  "slow_movers": {
+   "product_ids": [
+    "FS174",
+    "FS157"
+   ],
+   "no_sales_last_days": 45
+  },
+  "negative_reviews": {
+   "product_id": "FS188",
+   "issue": "size_runs_small",
+   "count": 6,
+   "last_days": 21
+  }
+ },
+ "files": {
+  "inventory.json": "359c41167ad91a3e372653719af46be0c184822747bedfddec24b9af69b6ca14",
+  "orders.jsonl": "ba17278c1b1b237913a31717d5e7cabf45c95d66aa089af3a411bc9857d5d7b8",
+  "reviews.jsonl": "11e698a22ea9028dfb75fa146e59fbcbd0623c2014aee6ebaa0425ab5a3f0afd"
+ }
+}

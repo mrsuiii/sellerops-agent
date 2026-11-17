@@ -7,9 +7,10 @@ What the framework does here:
   parses ``tool_use`` blocks into ``AIMessage.tool_calls``, and fills
   ``AIMessage.usage_metadata`` (``input_token_details.cache_read`` holds
   ``cache_read_input_tokens``).
-- ``output_config={"effort": ...}`` is sent as-is. Claude Opus 5.5 always uses
-  adaptive thinking, so ``thinking`` is left unset; effort is the only depth
-  control. Thinking blocks stay in ``AIMessage.content`` and are replayed on
+- ``output_config={"effort": ...}`` is sent as-is. The default model, Claude
+  Haiku 5.5 (and Opus 5.5), runs adaptive thinking by default, so
+  ``thinking`` is left unset; effort is the only depth control. Do not send
+  ``temperature`` / ``top_p`` / ``top_k``: Haiku 5.5 rejects non-default values. Thinking blocks stay in ``AIMessage.content`` and are replayed on
   the next call because the graph keeps the whole AIMessage in state.
 - ``max_retries`` is the SDK's own retry (408/409/429/5xx, connection errors).
   Behavioral retries (the model producing a bad answer) belong in the graph.

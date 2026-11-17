@@ -1,10 +1,7 @@
-.PHONY: install install-all lint fix test store docker
+.PHONY: install lint fix test store docker sim
 
 install:        ## Core + store + eval + dev tools (no torch)
 	pip install -e ".[dev]"
-
-install-all:    ## Everything, including local HF models (torch)
-	pip install -e ".[dev,local-model]"
 
 lint:
 	ruff check src scripts tests
@@ -14,6 +11,9 @@ fix:
 
 test:
 	pytest -q
+
+sim:            ## Regenerate data/seller_sim/ (dataset + eval tasks)
+	python scripts/generate_seller_sim.py
 
 store:          ## Run the Kala Studio demo store on :8000
 	uvicorn sellerops.store.api:app --reload

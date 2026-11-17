@@ -1,9 +1,7 @@
-"""Fixtures for harness tests: a scripted chat model and dev tasks (no network)."""
+"""Fixtures for harness tests: a scripted chat model and seller dev tasks (no network)."""
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -13,8 +11,6 @@ pytest.importorskip("langchain_anthropic")
 from langchain_core.language_models import BaseChatModel  # noqa: E402
 from langchain_core.messages import AIMessage, BaseMessage  # noqa: E402
 from langchain_core.outputs import ChatGeneration, ChatResult  # noqa: E402
-
-DEV_TASKS = Path(__file__).resolve().parents[2] / "data" / "tasks" / "dev.jsonl"
 
 
 class ScriptedChatModel(BaseChatModel):
@@ -56,5 +52,6 @@ def scripted_model():
 
 @pytest.fixture(scope="session")
 def dev_tasks() -> dict[str, dict[str, Any]]:
-    tasks = [json.loads(line) for line in DEV_TASKS.read_text(encoding="utf-8").splitlines() if line]
-    return {task["task_id"]: task for task in tasks}
+    from sellerops.evaluation.seller_tasks import load_tasks
+
+    return {task["task_id"]: task for task in load_tasks("dev")}

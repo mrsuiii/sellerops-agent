@@ -1,0 +1,31 @@
+{
+ "tasks_version": "seller-tasks-v1",
+ "data_version": "seller-sim-v1",
+ "data_files": {
+  "inventory.json": "359c41167ad91a3e372653719af46be0c184822747bedfddec24b9af69b6ca14",
+  "orders.jsonl": "ba17278c1b1b237913a31717d5e7cabf45c95d66aa089af3a411bc9857d5d7b8",
+  "reviews.jsonl": "11e698a22ea9028dfb75fa146e59fbcbd0623c2014aee6ebaa0425ab5a3f0afd"
+ },
+ "counts": {
+  "dev": 10,
+  "test": 9
+ },
+ "families": [
+  "caption",
+  "restock",
+  "review_insight",
+  "sales_drop",
+  "sales_spike",
+  "sales_summary",
+  "slow_movers",
+  "top_category",
+  "top_products"
+ ],
+ "files": {
+  "tasks.dev.jsonl": "2d4f0edb7a6e22980f87d06e2ac543f8057fa75899c2cd15d786b432d3690035",
+  "tasks.test.jsonl": "8688db789ced623a4e1fe5b569a8a4aa97d29a51a33b2f244394d74115e6ed91"
+ },
+ "frozen": [
+  "tasks.test.jsonl"
+ ]
+}

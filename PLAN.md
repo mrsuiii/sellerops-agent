@@ -104,7 +104,7 @@ user / task ──▶  │ START → model ──(tool call)──▶ tools ─�
                  └──────────┬───────────────────────────────┬─────────────────────────┘
                             │                               │
                      init_chat_model                  @tool + bind_tools
-          (ChatAnthropic | ChatOpenAI + base_url)    (EpisodeService / Kala Studio API)
+          (ChatAnthropic | ChatOpenAI + base_url)    (SellerEpisode / Kala Studio API)
 
 Workflow pasti (approval caption, KPI) = StateGraph custom + interrupt().
 Tracing + eval = LangSmith.
@@ -114,21 +114,24 @@ Struktur kode tumbuh bertahap di `src/sellerops/harness/`, misalnya
 `models.py` (chat model dari settings), `state.py`, `graph.py` (node + edge
 agent), `tools/` (tool production: seller di Track C, `store.py` di B1),
 `trajectory.py`; tool dan kontrak khusus eval di `src/sellerops/evaluation/`
-(`sim_tools.py`, `terminal_tools.py`) — `harness` tidak mengimpornya; workflow di
+(`seller_tools.py`, `terminal_tools.py`) — `harness` tidak mengimpornya; workflow di
 `src/sellerops/workflows/`. Jangan membuat semua file kosong sekaligus.
 
 Urutan track (keputusan 17 Nov 2026, mengikuti spec seller agent):
 **0 → A → C (seller) → B (buyer) → D → E**. Nama track tidak diubah agar
 rujukan lama (mis. C3, B1) tetap berlaku.
 
-`src/sellerops/baseline/` berisi pipeline LangGraph lama (router Qwen → SFT →
-tools) untuk mereproduksi baseline 0/30; jangan dikembangkan lagi.
+Kode Track 0 (`baseline/`, simulator offer/diskon lama, dataset
+`sellerops-sft-v0.2`, runner LangSmith) **dihapus 17 Nov 2026**; tersedia di
+git history (commit `1d3b5e0` dan sebelumnya) dan artefak di
+`../../archive/sellerops-sft-0.5b/`.
 
 ---
 
-## Track 0 — Fondasi dan baseline (selesai)
+## Track 0 — Fondasi dan baseline (selesai, diarsipkan)
 
 Ringkasan Session 1–10 lama; detail di versi arsip dan `LEARNING_LOG.md`.
+Kodenya sudah dihapus dari repo (lihat atas); daftar ini catatan sejarah.
 
 - [x] **S1 Data contracts**: `SellerTask`, `ToolCall`, `AskUser`,
   `FinalAnswer`, tagged action format, test valid/invalid.
@@ -154,8 +157,9 @@ Ringkasan Session 1–10 lama; detail di versi arsip dan `LEARNING_LOG.md`.
 Temuan kunci: e2e dev eval **0/30** (6 Oktober 2026). Router base-model
 mengeluarkan teks pada `act`, retry pindah ke `ask`; 60 router call, 0 SFT
 call, 0 tool call. Hasil di
-`results/evaluation/20261006T005916Z-ebe22193-sellerops-sft/`. Ini menjadi
-baseline yang harus dikalahkan dan bahan cerita debugging.
+`results/evaluation/20261006T005916Z-ebe22193-sellerops-sft/` (kini di arsip).
+Tetap jadi bahan cerita debugging, tetapi bukan pembanding eval baru (domain
+task-nya berbeda).
 
 ---
 
@@ -163,33 +167,40 @@ baseline yang harus dikalahkan dan bahan cerita debugging.
 
 ### Session A1 — Chat model, tool, dan agent graph minimal
 
-Status: [ ]
+Status: [x] (17 Nov 2026). Uji API sungguhan (`claude-opus-5-5`, effort
+medium, `ScriptedUser`): `omzet-30-hari` dan `toko-tanpa-periode` (multi-turn,
+agent bertanya periode dulu) lolos verifier; prompt cache terbaca
+(`cache_read` ~3,0–3,3 rb token per call setelah call pertama).
 
-Tujuan: satu task simulator berjalan end-to-end dengan Claude API lewat
-`StateGraph` agent yang disusun sendiri (model ⇄ tools).
+Tujuan: satu task simulator seller berjalan end-to-end dengan Claude API lewat
+`StateGraph` agent yang disusun sendiri (model ⇄ tools), termasuk satu
+percakapan multi-turn (`ask_user` → balasan user → `final`).
 
 Kerjakan:
 
-- [ ] Tambah dependency `langchain-anthropic` (dan `langchain-openai` untuk
-  provider kedua) setelah dijelaskan; perbarui `pyproject.toml` dan `uv.lock`.
-- [ ] `harness/models.py`: `init_chat_model` dari `get_settings()` (provider,
-  model, effort). Verifikasi cara `ChatAnthropic` meneruskan effort dan
-  refusal fallback.
-- [ ] `evaluation/sim_tools.py`: empat tool simulator sebagai `@tool` yang memanggil
-  `EpisodeService.execute_tool` (session id lewat runtime/config, bukan
-  argumen model); deskripsi dan skema argumen diturunkan dari `schemas.py`.
-- [ ] Tool `final` / `ask_user` di `evaluation/terminal_tools.py` (skema Pydantic dari `schemas.py`, dioper ke graph sebagai `terminal_tools`) sehingga
-  hasil akhir bisa langsung masuk `verify_outcome`.
-- [ ] `harness/state.py`: state agent (messages dengan `add_messages`, jumlah
-  step, `final_action`, alasan berhenti).
-- [ ] `harness/graph.py`: node `model`, node `tools`, conditional edge
-  `should_continue`, batas langkah (bedakan dengan `recursion_limit`).
-- [ ] Prompt caching lewat `cache_control` di `ChatAnthropic`; cek
-  `usage_metadata` / `cache_read_input_tokens` di respons.
-- [ ] Test tanpa network memakai fake chat model (`langchain_core` fake model
-  yang mendukung `bind_tools`) untuk happy path dan stop condition.
-- [ ] Hapus `src/sellerops/harness/adapters/` (adapter Anthropic tulis tangan,
-  16 Nov 2026) setelah `ChatAnthropic` menggantikannya.
+- [x] Dependency `langchain-anthropic` di extra `agent` (`langchain-openai`
+  untuk provider kedua belum; `uv.lock` belum diputuskan).
+- [x] `harness/models.py`: `init_chat_model` dari `get_settings()` (provider,
+  model, effort). Refusal fallback server-side belum dipasang (A2).
+- [x] `evaluation/seller_tools.py`: enam tool seller (`StructuredTool`) yang
+  memanggil `SellerEpisode.call`; episode terikat lewat closure, bukan
+  argumen model.
+- [x] Tool `final` / `ask_user` di `evaluation/terminal_tools.py` (Pydantic,
+  dioper ke graph sebagai `terminal_tools`) sehingga hasil akhir langsung
+  masuk `verify_conversation`.
+- [x] `harness/state.py`: state agent (messages dengan `add_messages`, jumlah
+  step, `final_action`, alasan berhenti). Diimplementasi assistant atas
+  permintaan eksplisit user (17 Nov 2026).
+- [x] `harness/graph.py`: node `start_turn` (reset per giliran), `model`,
+  `tools`, conditional edge setelah model dan tools, batas langkah per giliran
+  (beda dengan `recursion_limit`).
+- [x] Prompt caching lewat `cache_control` di `ChatAnthropic`; terverifikasi
+  lewat `usage_metadata["input_token_details"]["cache_read"]`.
+- [x] Test tanpa network (`tests/harness/test_graph.py`, scripted chat model):
+  happy path, ask_user, teks tanpa tool, batas langkah, final invalid, error
+  tool, mode chat, dan percakapan multi-turn dengan `ScriptedUser`. Di-skip
+  sampai `build_agent_graph` diimplementasi.
+- [x] Adapter Anthropic tulis tangan sudah dihapus.
 
 Bagian inti untuk user:
 
@@ -199,7 +210,8 @@ Bagian inti untuk user:
 
 Definition of done:
 
-- Satu happy-path dev task selesai dan lolos `verify_outcome`.
+- Semua test di `tests/harness/test_graph.py` lolos (tidak ada skip).
+- Satu dev task lolos `verify_conversation` dengan Claude API sungguhan.
 - Agent berhenti aman pada output invalid atau batas langkah (ada test-nya).
 
 ### Session A2 — Robustness: error, retry, timeout
@@ -212,21 +224,22 @@ Status: [ ]
   dan retry bawaan client, terpisah dari retry perilaku model;
   `with_fallbacks` untuk model cadangan.
 - [ ] Timeout per call dan per episode; budget token.
-- [ ] Test adversarial: tool tidak ada, argumen invalid, stok habis, diskon
-  melewati batas.
+- [ ] Test adversarial: tool tidak ada, argumen invalid, produk tidak ada,
+  proposal caption melanggar batas.
 
 Bagian inti untuk user: memetakan jenis error ke retry / lanjut / berhenti dan
 menaruhnya di node, edge, atau `RetryPolicy` yang tepat.
 
 DoD: setiap jenis error punya perilaku eksplisit dan test.
 
-### Session A3 — Eval agent API vs baseline
+### Session A3 — Eval multi-turn seller agent
 
 Status: [ ]
 
-- [ ] Target eval baru di `evaluation/` yang menjalankan agent A1 per task
-  (episode terisolasi, `thread_id` per episode); verifier yang sama, k ≥ 3
-  repetisi; laporkan pass@1 dan pass^k per family.
+- [ ] CLI eval (`scripts/evaluate_seller.py`) yang menjalankan agent A1 per
+  task dev lewat `run_conversation` (episode + `thread_id` per percakapan,
+  `LLMUser` atau `ScriptedUser`), k ≥ 3 repetisi; laporkan pass@1, pass@k,
+  dan pass^k (`metrics.py`) per family.
 - [ ] Catat token, biaya, latency p50/p95, rata-rata steps (dari LangSmith /
   `usage_metadata`).
 - [ ] Error analysis minimal 5 kegagalan (ala Hamel Husain) dari trace
@@ -236,8 +249,9 @@ Status: [ ]
 
 Bagian inti untuk user: membaca trajectory gagal dan menulis RCA.
 
-DoD: tabel baseline 0.5B vs agent API tersimpan di `results/evaluation/`
-dengan config dan model id; frozen test belum disentuh.
+DoD: tabel hasil per family (ScriptedUser vs LLMUser) tersimpan di
+`results/evaluation/` dengan config, model id, data/tasks version; frozen test
+belum disentuh.
 
 ### Session A4 — Context, memory, trajectory replay
 
@@ -262,37 +276,39 @@ ringkasan dengan benar.
 
 Spec: https://claude.ai/artifact/Wond21GKwf7ui7xdgcSHSa
 
-Catatan (17 Nov 2026) — data simulasi dan eval multi-turn:
+Catatan (17 Nov 2026) — simulator seller dan eval multi-turn (selesai):
 
-- Simulator saat ini (`src/sellerops/simulator/`, task `sellerops-sft-v0.2`)
-  masih domain lama: offer dan diskon per transaksi, satu task = satu pesan.
-  Ini **bukan** domain seller agent (spec: tanpa tawar-menawar). Dipakai untuk
-  A1–A3 saja.
-- Untuk Track C, **data simulasinya diganti**: katalog Kala Studio + order,
-  stok, dan review sintetis (C1), dengan task eval seller yang baru.
-- Eval seller dibuat **multi-turn** sejak awal (pola τ-bench). Yang perlu
-  dibuat, bukan hanya isi data:
-  - task dengan info tersembunyi milik user (detail yang baru disebut kalau
-    ditanya), persona, dan tujuan;
-  - user simulator (LLM yang membalas pertanyaan agent);
-  - runner giliran: agent → user simulator → agent …, batas giliran, state
-    agent disambung lewat checkpointer + `thread_id`;
-  - `ask_user` mengakhiri giliran, bukan episode; verifier menilai hasil
-    akhir percakapan (+ jumlah giliran, pass^k).
-- Graph agent (Track A) tidak perlu berubah bila `ask_user` menghentikan graph
-  dan giliran berikutnya dilanjutkan dengan `graph.invoke` pada `thread_id`
-  yang sama; pastikan `stop_reason` / `final_action` di-reset per giliran.
+- Simulator lama (offer/diskon, satu task = satu pesan) sudah dihapus.
+  Dunia eval Track A dan C sekarang **simulator seller** (`simulator/`):
+  katalog Kala Studio + order, stok, review sintetis 90 hari dengan skenario
+  tertanam. Detail: `src/sellerops/evaluation/README.md`.
+- Eval **multi-turn** (pola τ-bench) tersedia: task dengan `hidden_info`,
+  persona, tujuan; `ScriptedUser` / `LLMUser`; runner giliran
+  (`conversation.py`, checkpointer + `thread_id`); `ask_user` mengakhiri
+  giliran dan balasan user masuk sebagai `ToolMessage` untuk call itu;
+  verifier menilai hasil akhir (+ jumlah giliran, pass^k).
+- Graph agent (Track A) tidak perlu tahu soal multi-turn: runner mereset
+  `final_action` / `stop_reason` di input setiap giliran.
 
 ### Session C1 — Data order sintetis
 
-Status: [ ]
+Status: [x] (17 Nov 2026)
 
-- [ ] Generator order, stok, dan review sintetis yang deterministik (seed)
-  untuk katalog Kala Studio, dengan pola yang bisa diuji (produk laris,
-  produk lambat, stok menipis, review negatif berulang).
-- [ ] Endpoint/read model untuk penjualan dan stok.
+- [x] Generator order, stok, dan review sintetis yang deterministik (seed)
+  untuk katalog Kala Studio, dengan pola yang bisa diuji (lonjakan, stok
+  habis → penurunan kategori, stok menipis, produk tidak laku, review
+  negatif berulang): `simulator/generator.py`, `make sim`.
+- [x] Read model penjualan, performa produk, stok + restock, review, produk,
+  proposal caption: `simulator/store.py` (endpoint HTTP menyusul di C2/C3
+  bersama `StoreClient`).
+- [x] 19 task eval (10 dev, 9 test frozen) dengan kunci jawaban dihitung dari
+  data; verifier + reference solution lolos semua task.
 
-DoD: dataset tersimpan dengan seed dan manifest; ada test pola.
+DoD: dataset tersimpan dengan seed dan manifest (checksum); test pola di
+`tests/simulator/`.
+
+Keputusan terbuka di spec yang diambil default di C1: target restock N = 14
+hari (`target_days`, bisa diubah), "perlu restock segera" = habis ≤ 7 hari.
 
 ### Session C2 — Analisis penjualan (agent)
 
@@ -395,13 +411,8 @@ fitur selesai dan future work.
 
 ## Current next session
 
-Lihat **`HANDOFF.md` §2–§3** (17 Nov 2026). Ringkasnya:
-
-1. Arahan user: lupakan baseline 0.5B, **hapus simulator lama**, **buat
-   simulator baru multi-turn** (domain seller, sesuai spec). Artefak fine-tune
-   sudah dipindah ke `../../archive/sellerops-sft-0.5b/`.
-2. Akibatnya: Track 0 menjadi arsip; Session A3 "vs baseline" diganti eval
-   agent di simulator seller; Session C1 (data order sintetis) dikerjakan
-   lebih dulu karena menjadi dunia eval untuk A1–A3.
-3. Setelah simulator baru + test graph ditulis ulang, user mengerjakan TODO
-   A1 di `harness/state.py` dan `harness/graph.py`.
+**A2** (robustness: `RetryPolicy`, fallback, timeout) dan **A3** (CLI eval
+multi-turn). Catatan dari uji API A1: model menghitung sendiri angka turunan
+di `message` (mis. "turun sekitar 34%") yang tidak ada di output tool;
+verifier hanya mengecek `final.data`. Perlu diputuskan: tambah field
+pembanding di tool, perketat prompt, atau nilai `message` lewat judge (A3).

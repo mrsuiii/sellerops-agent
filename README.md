@@ -1,32 +1,29 @@
 # SellerOps Agent
 
-Tool-using e-commerce agents on one marketplace, with a deterministic simulator,
-an evaluation harness, and a demo fashion store ("Kala Studio").
+Tool-using e-commerce agents on one marketplace, built on LangGraph and the
+Claude API, with a multi-turn seller simulator, an evaluation harness, and a demo
+fashion store ("Kala Studio").
 
 ```text
-deterministic simulator → frozen evaluation tasks → base-model evaluation
-    → full SFT → LangGraph runtime + trajectory replay → (optional) DPO
+synthetic orders/stock/reviews (seeded) → seller tools → LangGraph agent (model ⇄ tools)
+    → multi-turn eval (user simulator, outcome verifier, pass@k / pass^k)
 ```
 
-Planned direction: a **buyer agent** (shopping assistant: search, recommend,
-product detail, cart) and a **seller agent** (sales analysis and advice), backed
-by an API-hosted model. The fine-tuned Qwen2.5-0.5B remains as a baseline.
+Direction: a **seller agent** (sales analysis, restock, review insight, caption
+fixes with human approval) first, then a **buyer agent** (search, recommend,
+product detail, cart). The earlier Qwen 0.5B fine-tuning track is archived.
 
 ## Repository layout
 
 ```text
 src/sellerops/
-├── schemas.py, dataset.py                   # action schemas, task generator (stdlib only)
-├── simulator/                               # SellerEnvironment + isolated episodes, snapshot, replay (eval only)
-├── harness/                                 # LangGraph agent graph (model ⇄ tools, Claude API)
-├── baseline/                                # legacy LangGraph router → action → tools (Qwen 0.5B baseline)
-├── evaluation/                              # verifier, LangSmith runner, metrics, judge
-└── store/                                   # Kala Studio FastAPI backend + BM25 recommender
+├── simulator/        # seller simulator: synthetic 90-day orders, stock, reviews; read model; episodes (eval only)
+├── harness/          # LangGraph agent graph (model ⇄ tools, Claude API); never imports evaluation/simulator
+├── evaluation/       # seller tools, terminal tools, tasks, user simulators, turn loop, verifier, metrics
+└── store/            # Kala Studio FastAPI backend + BM25 recommender
 web/          # plain HTML/CSS/JS storefront served by the store API
-data/         # tasks, SFT data, answer keys, store catalog snapshot
-scripts/      # dataset generation, catalog import, evaluation CLI
-results/      # evaluation outputs (created on demand)
-docs/         # deep-dive guides
+data/         # store catalog snapshot, seller_sim/ (dataset + eval tasks + manifests)
+scripts/      # seller simulator generation, catalog import
 tests/
 ```
 
@@ -36,8 +33,7 @@ Requires Python 3.12+.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"            # store + agent + eval + dev tools, no torch
-# pip install -e ".[dev,local-model]"  # add torch/transformers for local HF models
+pip install -e ".[dev]"            # store + agent + eval + dev tools
 cp .env.example .env               # fill in only the keys you need
 ```
 
@@ -45,11 +41,10 @@ Dependency groups (`pyproject.toml`):
 
 | Extra | For |
 | --- | --- |
-| *(none)* | core: schemas, simulator, dataset, episode service, verifier (+ python-dotenv) |
+| *(none)* | core: seller simulator, settings, catalog (+ python-dotenv) |
 | `store` | Kala Studio API (FastAPI, uvicorn) |
 | `agent` | LangGraph runtime |
-| `eval` | evaluation harness (LangSmith, Gemini judge) |
-| `local-model` | local Qwen base / SFT checkpoint (torch, transformers) |
+| `eval` | evaluation harness (multi-turn runner, user simulators, optional Gemini judge) |
 | `dev` | `store` + `eval` + pytest, ruff, pre-commit |
 
 The existing Conda environment `llm-post-training` still works; run
@@ -58,7 +53,7 @@ The existing Conda environment `llm-post-training` still works; run
 ## Common commands
 
 ```bash
-make test     # pytest (torch-dependent tests are skipped without the local-model extra)
+make test     # pytest
 make lint     # ruff
 make store    # Kala Studio on http://127.0.0.1:8000 (API docs at /docs)
 make docker   # build and run the store container
@@ -67,13 +62,10 @@ make docker   # build and run the store container
 Other entry points:
 
 ```bash
-python scripts/generate_sellerops_dataset.py        # regenerate deterministic dataset
-python scripts/evaluate_agent.py --offline --limit 1 # local eval (needs local-model + SFT weights)
-python scripts/evaluate_agent.py --cloud            # publish to LangSmith (LANGSMITH_API_KEY)
+make sim      # python scripts/generate_seller_sim.py: regenerate data/seller_sim/ (deterministic)
 ```
 
-`--judge gemini` (needs `GEMINI_API_KEY`) sends evaluation content to Google even
-with `--offline`; `--offline` only controls LangSmith publishing.
+An eval CLI for the seller agent comes with Session A3 (after the A1 graph).
 
 ## Configuration
 
@@ -82,11 +74,11 @@ Secrets and settings come from environment variables; see
 
 | Variable | Used by |
 | --- | --- |
-| `LANGSMITH_API_KEY` | `evaluate_agent.py --cloud` |
+| `LANGSMITH_API_KEY` | optional LangSmith tracing |
 | `GEMINI_API_KEY` | optional Gemini prose judge |
 | `SELLEROPS_LLM_PROVIDER` | hosted model provider: `anthropic` (default) or `openai_compatible` (adapter not wired yet) |
 | `ANTHROPIC_API_KEY` | Claude API key, read by the `anthropic` SDK |
-| `SELLEROPS_LLM_MODEL`, `SELLEROPS_LLM_EFFORT` | Claude model id (default `claude-opus-5-5`) and effort (default `medium`) |
+| `SELLEROPS_LLM_MODEL`, `SELLEROPS_LLM_EFFORT` | Claude model id (default `claude-haiku-5-5`) and effort (default `medium`) |
 | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | OpenAI-compatible endpoint (default base URL: NVIDIA `integrate.api.nvidia.com/v1`) |
 | `SELLEROPS_PROJECT_ROOT` | repo root (needed for non-editable installs, e.g. Docker) |
 | `SELLEROPS_DATA_DIR`, `SELLEROPS_WEB_DIR`, `SELLEROPS_RESULTS_DIR`, `SELLEROPS_CATALOG_PATH` | override data locations |
@@ -110,17 +102,14 @@ It runs as a non-root user and exposes a health check at `/api/health`.
 
 ## Documentation
 
-- [AGENT_WALKTHROUGH.md](AGENT_WALKTHROUGH.md): router/action graph walkthrough
-- [src/sellerops/evaluation/README.md](src/sellerops/evaluation/README.md): evaluation harness
-- [docs/episode-replay-and-verification.md](docs/episode-replay-and-verification.md): message conversion, snapshots, replay, outcome verifier
-- Qwen 0.5B SFT artifacts (weights, notebooks, results) were moved out of this repo to `../../archive/sellerops-sft-0.5b/` on 17 Nov 2026.
+- [src/sellerops/evaluation/README.md](src/sellerops/evaluation/README.md): seller simulator, planted scenarios, multi-turn eval
 - [web/README.md](web/README.md): Kala Studio store and API
-- [data/DATASET_CARD.md](data/DATASET_CARD.md): dataset
 - [PLAN.md](PLAN.md): learning plan and milestones
+- The Qwen 0.5B track (code, weights, notebooks, results, old simulator) was removed on 17 Nov 2026;
+  artifacts live in `../../archive/sellerops-sft-0.5b/` and the code in git history.
 
 ## Current status
 
-- 116 torch-free tests pass; 3 test modules need the `local-model` extra.
+- Seller simulator (C1) and multi-turn eval scaffolding are in place; 19 tasks (10 dev, 9 frozen test).
+- The agent graph (`harness/state.py`, `harness/graph.py`) is Session A1 and still a TODO; its tests are skipped until then.
 - No CI: run `make lint test` (or `pre-commit install` once) before pushing.
-- Full SFT of Qwen2.5-0.5B-Instruct: schema validity 17.9% → 100%, exact action 0% → 70.5% (dev).
-- End-to-end dev eval is 0/30: the base-model router emits text on `act`, so the SFT action model is never called.

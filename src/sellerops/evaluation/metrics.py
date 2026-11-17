@@ -1,4 +1,4 @@
-"""Task-level pass@1/pass@k, shared by local reports and LangSmith summaries."""
+"""Task-level pass@k (any of k trials passes) and pass^k (all k trials pass)."""
 
 from collections import defaultdict
 from math import comb
@@ -38,38 +38,26 @@ def pass_metrics(samples, *, repetitions, k, task_ids):
     }
 
 
-def make_pass_summary(*, repetitions, k, task_ids, include_judge=False):
-    """Publish experiment-level scores, rather than averaging per-run pass@k."""
-    from .evaluators import grade_episode
+def pass_hat_metrics(samples, *, repetitions, k, task_ids):
+    """τ-bench pass^k: probability that k independent trials of a task ALL pass.
 
-    def pass_summary(runs, examples):
-        samples = []
-        judged_samples = []
-        for run, example in zip(runs, examples, strict=False):
-            score = None
-            if not run.error and run.outputs:
-                try:
-                    report = grade_episode(example.outputs["task"], run.outputs)
-                    score = int(report["decision"] == "pass")
-                except Exception:
-                    # The row evaluator reports details. An unknown outcome must
-                    # invalidate the aggregate, never masquerade as agent failure.
-                    pass
-            samples.append((example.inputs["task_id"], score))
-            if include_judge:
-                from .judge import end_to_end_score
-                judged_samples.append((example.inputs["task_id"],
-                                       None if score is None else end_to_end_score(score, run.outputs)))
-        metrics = pass_metrics(samples, repetitions=repetitions, k=k, task_ids=task_ids)
-        if include_judge:
-            metrics.update({f"end_to_end_{key}": value for key, value in pass_metrics(
-                judged_samples, repetitions=repetitions, k=k, task_ids=task_ids).items()})
-        return {"results": [
-            {"key": key, "score": value, "comment": (
-                "Incomplete or unscored trials" if value is None else
-                f"Task-macro estimator; n={repetitions}; " +
-                ("structured + prose judge" if key.startswith("end_to_end_") else "structured outcomes")
-            )} for key, value in metrics.items()
-        ]}
-
-    return pass_summary
+    For each task with n trials and c successes: C(c,k)/C(n,k); tasks averaged
+    equally. pass^1 equals pass@1; pass^k falls as k grows unless the agent is
+    consistent. Same input contract as ``pass_metrics``.
+    """
+    validate_repetitions(repetitions, k)
+    grouped = defaultdict(list)
+    for task_id, score in samples:
+        grouped[task_id].append(score)
+    keys = sorted({1, k})
+    invalid = {f"pass^{size}": None for size in keys}
+    if not task_ids or set(grouped) != set(task_ids):
+        return invalid
+    if any(len(scores) != repetitions or any(s not in (0, 1) for s in scores)
+           for scores in grouped.values()):
+        return invalid
+    return {
+        f"pass^{size}": mean(comb(int(sum(scores)), size) / comb(repetitions, size)
+                             for scores in grouped.values())
+        for size in keys
+    }

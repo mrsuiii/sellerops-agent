@@ -6,23 +6,23 @@ import pytest
 from pydantic import ValidationError
 
 from sellerops.evaluation.terminal_tools import TERMINAL_TOOL_NAMES, AskUser, FinalAnswer, terminal_action
-from sellerops.schemas import SchemaError
 
 
 def test_terminal_action_validates() -> None:
     assert TERMINAL_TOOL_NAMES == {"final", "ask_user"}
-    action = terminal_action("final", {"status": "success", "message": "ok", "data": {"products": []}})
-    assert action == {"type": "final", "status": "success", "message": "ok", "data": {"products": []}}
-    assert terminal_action("ask_user", {"question": "Ukuran?", "missing_fields": ["size"]})["type"] == "ask_user"
+    action = terminal_action("final", {"message": "Omzet Rp1 jt.", "data": {"revenue_idr": 1000000}})
+    assert action == {"type": "final", "message": "Omzet Rp1 jt.", "data": {"revenue_idr": 1000000}}
+    assert terminal_action("ask_user", {"question": "Periode apa?"}) == {"type": "ask_user", "question": "Periode apa?"}
     with pytest.raises(ValidationError):
-        terminal_action("final", {"status": "done", "message": "ok", "data": {}})
-    with pytest.raises((ValidationError, SchemaError)):
-        terminal_action("ask_user", {"question": "?", "missing_fields": []})
-
-
-def test_to_action_protocol() -> None:
-    final = FinalAnswer.model_validate({"status": "not_found", "message": "Tidak ada.", "data": {"products": []}})
-    assert final.to_action()["type"] == "final"
-    assert AskUser.model_validate({"question": "Merek?", "missing_fields": ["brand"]}).to_action()["type"] == "ask_user"
+        terminal_action("final", {"message": "", "data": {}})
+    with pytest.raises(ValidationError):
+        terminal_action("final", {"message": "ok", "data": "x"})
+    with pytest.raises(ValidationError):
+        terminal_action("ask_user", {"question": ""})
     with pytest.raises(ValueError):
-        terminal_action("search_products", {})
+        terminal_action("get_product", {})
+
+
+def test_tool_names_are_the_titles() -> None:
+    assert FinalAnswer.model_config["title"] == "final"
+    assert AskUser.model_config["title"] == "ask_user"

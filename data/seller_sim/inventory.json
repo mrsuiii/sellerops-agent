@@ -1,0 +1,326 @@
+[
+ {
+  "product_id": "FS006",
+  "initial_stock": 135,
+  "units_sold": 106,
+  "stock": 29
+ },
+ {
+  "product_id": "FS007",
+  "initial_stock": 122,
+  "units_sold": 64,
+  "stock": 58
+ },
+ {
+  "product_id": "FS008",
+  "initial_stock": 160,
+  "units_sold": 62,
+  "stock": 98
+ },
+ {
+  "product_id": "FS009",
+  "initial_stock": 65,
+  "units_sold": 61,
+  "stock": 4
+ },
+ {
+  "product_id": "FS010",
+  "initial_stock": 153,
+  "units_sold": 62,
+  "stock": 91
+ },
+ {
+  "product_id": "FS083",
+  "initial_stock": 168,
+  "units_sold": 130,
+  "stock": 38
+ },
+ {
+  "product_id": "FS084",
+  "initial_stock": 194,
+  "units_sold": 104,
+  "stock": 90
+ },
+ {
+  "product_id": "FS085",
+  "initial_stock": 193,
+  "units_sold": 111,
+  "stock": 82
+ },
+ {
+  "product_id": "FS086",
+  "initial_stock": 141,
+  "units_sold": 139,
+  "stock": 2
+ },
+ {
+  "product_id": "FS087",
+  "initial_stock": 205,
+  "units_sold": 110,
+  "stock": 95
+ },
+ {
+  "product_id": "FS088",
+  "initial_stock": 54,
+  "units_sold": 47,
+  "stock": 7
+ },
+ {
+  "product_id": "FS089",
+  "initial_stock": 85,
+  "units_sold": 73,
+  "stock": 12
+ },
+ {
+  "product_id": "FS090",
+  "initial_stock": 157,
+  "units_sold": 67,
+  "stock": 90
+ },
+ {
+  "product_id": "FS091",
+  "initial_stock": 67,
+  "units_sold": 50,
+  "stock": 17
+ },
+ {
+  "product_id": "FS092",
+  "initial_stock": 119,
+  "units_sold": 57,
+  "stock": 62
+ },
+ {
+  "product_id": "FS093",
+  "initial_stock": 106,
+  "units_sold": 74,
+  "stock": 32
+ },
+ {
+  "product_id": "FS094",
+  "initial_stock": 117,
+  "units_sold": 17,
+  "stock": 100
+ },
+ {
+  "product_id": "FS095",
+  "initial_stock": 46,
+  "units_sold": 6,
+  "stock": 40
+ },
+ {
+  "product_id": "FS096",
+  "initial_stock": 40,
+  "units_sold": 4,
+  "stock": 36
+ },
+ {
+  "product_id": "FS097",
+  "initial_stock": 87,
+  "units_sold": 1,
+  "stock": 86
+ },
+ {
+  "product_id": "FS098",
+  "initial_stock": 57,
+  "units_sold": 2,
+  "stock": 55
+ },
+ {
+  "product_id": "FS154",
+  "initial_stock": 161,
+  "units_sold": 101,
+  "stock": 60
+ },
+ {
+  "product_id": "FS155",
+  "initial_stock": 111,
+  "units_sold": 110,
+  "stock": 1
+ },
+ {
+  "product_id": "FS156",
+  "initial_stock": 136,
+  "units_sold": 112,
+  "stock": 24
+ },
+ {
+  "product_id": "FS157",
+  "initial_stock": 142,
+  "units_sold": 56,
+  "stock": 86
+ },
+ {
+  "product_id": "FS158",
+  "initial_stock": 155,
+  "units_sold": 128,
+  "stock": 27
+ },
+ {
+  "product_id": "FS162",
+  "initial_stock": 166,
+  "units_sold": 114,
+  "stock": 52
+ },
+ {
+  "product_id": "FS163",
+  "initial_stock": 246,
+  "units_sold": 203,
+  "stock": 43
+ },
+ {
+  "product_id": "FS164",
+  "initial_stock": 157,
+  "units_sold": 102,
+  "stock": 55
+ },
+ {
+  "product_id": "FS165",
+  "initial_stock": 164,
+  "units_sold": 142,
+  "stock": 22
+ },
+ {
+  "product_id": "FS166",
+  "initial_stock": 173,
+  "units_sold": 100,
+  "stock": 73
+ },
+ {
+  "product_id": "FS172",
+  "initial_stock": 140,
+  "units_sold": 64,
+  "stock": 76
+ },
+ {
+  "product_id": "FS173",
+  "initial_stock": 163,
+  "units_sold": 64,
+  "stock": 99
+ },
+ {
+  "product_id": "FS174",
+  "initial_stock": 87,
+  "units_sold": 12,
+  "stock": 75
+ },
+ {
+  "product_id": "FS175",
+  "initial_stock": 138,
+  "units_sold": 99,
+  "stock": 39
+ },
+ {
+  "product_id": "FS176",
+  "initial_stock": 85,
+  "units_sold": 74,
+  "stock": 11
+ },
+ {
+  "product_id": "FS177",
+  "initial_stock": 72,
+  "units_sold": 47,
+  "stock": 25
+ },
+ {
+  "product_id": "FS178",
+  "initial_stock": 79,
+  "units_sold": 49,
+  "stock": 30
+ },
+ {
+  "product_id": "FS179",
+  "initial_stock": 101,
+  "units_sold": 68,
+  "stock": 33
+ },
+ {
+  "product_id": "FS180",
+  "initial_stock": 270,
+  "units_sold": 264,
+  "stock": 6
+ },
+ {
+  "product_id": "FS181",
+  "initial_stock": 102,
+  "units_sold": 40,
+  "stock": 62
+ },
+ {
+  "product_id": "FS182",
+  "initial_stock": 165,
+  "units_sold": 111,
+  "stock": 54
+ },
+ {
+  "product_id": "FS183",
+  "initial_stock": 168,
+  "units_sold": 95,
+  "stock": 73
+ },
+ {
+  "product_id": "FS184",
+  "initial_stock": 134,
+  "units_sold": 133,
+  "stock": 1
+ },
+ {
+  "product_id": "FS185",
+  "initial_stock": 91,
+  "units_sold": 88,
+  "stock": 3
+ },
+ {
+  "product_id": "FS186",
+  "initial_stock": 444,
+  "units_sold": 444,
+  "stock": 0
+ },
+ {
+  "product_id": "FS187",
+  "initial_stock": 174,
+  "units_sold": 86,
+  "stock": 88
+ },
+ {
+  "product_id": "FS188",
+  "initial_stock": 193,
+  "units_sold": 144,
+  "stock": 49
+ },
+ {
+  "product_id": "FS189",
+  "initial_stock": 113,
+  "units_sold": 106,
+  "stock": 7
+ },
+ {
+  "product_id": "FS190",
+  "initial_stock": 93,
+  "units_sold": 3,
+  "stock": 90
+ },
+ {
+  "product_id": "FS191",
+  "initial_stock": 53,
+  "units_sold": 1,
+  "stock": 52
+ },
+ {
+  "product_id": "FS192",
+  "initial_stock": 6,
+  "units_sold": 2,
+  "stock": 4
+ },
+ {
+  "product_id": "FS193",
+  "initial_stock": 7,
+  "units_sold": 7,
+  "stock": 0
+ },
+ {
+  "product_id": "FS194",
+  "initial_stock": 64,
+  "units_sold": 52,
+  "stock": 12
+ }
+]

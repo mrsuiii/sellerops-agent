@@ -33,7 +33,7 @@ _LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _LOG_FORMATS = {"text", "json"}
 _LLM_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 _LLM_PROVIDERS = {"anthropic", "openai_compatible"}
-DEFAULT_LLM_MODEL = "claude-opus-5-5"
+DEFAULT_LLM_MODEL = "claude-haiku-5-5"
 DEFAULT_LLM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
 
