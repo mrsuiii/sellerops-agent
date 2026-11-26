@@ -17,7 +17,8 @@ product detail, cart). The earlier Qwen 0.5B fine-tuning track is archived.
 
 ```text
 src/sellerops/
-├── simulator/        # seller simulator: synthetic 90-day orders, stock, reviews; read model; episodes (eval only)
+├── seller/           # seller backend: shared analytics, SQLite, caption approval service + audit log, /api/seller
+├── simulator/        # seller simulator: synthetic 90-day orders, stock, reviews; episodes (eval only)
 ├── harness/          # LangGraph agent graph (model ⇄ tools, Claude API); never imports evaluation/simulator
 ├── evaluation/       # seller tools, terminal tools, tasks, user simulators, turn loop, verifier, metrics
 └── store/            # Kala Studio FastAPI backend + BM25 recommender
@@ -57,6 +58,10 @@ make test     # pytest
 make lint     # ruff
 make store    # Kala Studio on http://127.0.0.1:8000 (API docs at /docs)
 make docker   # build and run the store container
+make test-live     # integration tests with the real LLM (costs money; needs .env)
+make try-approval  # play the seller in the caption approval graph (real LLM)
+                   # free dry run: python scripts/try_caption_approval.py --fake
+make studio        # LangGraph Studio for the workflows (make studio-fake: no LLM costs)
 ```
 
 Other entry points:
@@ -83,6 +88,8 @@ Secrets and settings come from environment variables; see
 | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | OpenAI-compatible endpoint (default base URL: NVIDIA `integrate.api.nvidia.com/v1`) |
 | `SELLEROPS_PROJECT_ROOT` | repo root (needed for non-editable installs, e.g. Docker) |
 | `SELLEROPS_DATA_DIR`, `SELLEROPS_WEB_DIR`, `SELLEROPS_RESULTS_DIR`, `SELLEROPS_CATALOG_PATH` | override data locations |
+| `SELLEROPS_SELLER_DB` | seller backend SQLite file (default `var/seller.sqlite`, seeded from `data/seller_sim` on first start) |
+| `SELLEROPS_APPROVALS_DB` | checkpoints of the caption approval workflow (default `var/approvals.sqlite`) |
 | `SELLEROPS_LOG_LEVEL`, `SELLEROPS_LOG_FORMAT` | `INFO`/`DEBUG`/…, `text` or `json` |
 | `SELLEROPS_CORS_ORIGINS` | comma-separated origins allowed to call the store API |
 
@@ -91,13 +98,47 @@ project root is loaded automatically (real environment variables win).
 Logging is configured once per entry point via `sellerops.logging_config.configure_logging()`;
 the Docker image logs JSON lines and each store response carries an `x-request-id`.
 
+## Seller backend
+
+`make store` also serves the seller API under `/api/seller` (see `/docs`): sales,
+product performance, stock and reviews for the seller UI, and the caption approval
+flow. Everything goes through `sellerops.seller.SellerService` on SQLite:
+
+```text
+pending ──approve──► applied ──revert──► reverted      (approve = apply, in one transaction)
+   │  ├──reject(feedback)──► rejected ──► revision (revision_of, max 5 rejections)
+   │  └──cancel──► cancelled
+   └──(another proposal applied first)──► stale
+```
+
+- Every caption the shop shows has a row in `caption_versions`; the schema refuses
+  a caption change without one, and `audit_log` / `caption_versions` are append-only.
+- Revert restores the previous caption as a new version, and only while the product
+  still shows that proposal's caption.
+- The seller agent's tools use `InProcessSellerClient`: read tools plus
+  `propose_caption_update` only, so the agent can never apply a caption.
+- Writes take an `X-Seller-User` header as the actor. **No authentication yet**: demo only.
+- Reset the demo data: delete `var/seller.sqlite` (and `var/approvals.sqlite`) and restart.
+- With the agent runtime installed, the approval **workflow** runs behind
+  `GET /caption-proposals/{id}/approval` and `POST …/approval/decision`
+  (`{"decision": "approve" | "reject" | "cancel", "feedback", "add_fields"}`):
+  a reject drafts the revision with the LLM and the response already holds it;
+  `POST …/approval/retry` re-runs a failed step. Graph checkpoints live in
+  `var/approvals.sqlite` (`SELLEROPS_APPROVALS_DB`). The plain approve / reject /
+  cancel routes stay as service calls without the graph.
+- One store today, but ready for more: each `SellerService` is bound to a `store_id`
+  (the database records its owner and refuses another), callers get a service only via
+  `SellerServices.for_store(store_id)` (`seller/registry.py`), and the API decides the
+  store and the actor in two dependencies (`current_store_id`, `actor`). Going
+  multi-store means a new `SellerServices` implementation and reading both from auth.
+
 ## Docker
 
 One `Dockerfile`, two targets, so evaluation never shares an environment with production:
 
 | Target | Image | Contains | Secrets |
 | --- | --- | --- | --- |
-| `store` (default) | `sellerops-store` | store API, catalog, web frontend (`[store]` extra) | none |
+| `store` (default) | `sellerops-store` | store + seller API, catalog, seller demo data, web frontend (`[store]` extra); seller DB on the `seller-db` volume | none |
 | `eval` | `sellerops-eval` | agent + eval harness, simulator data and tasks (`[eval]` extra, pinned by `uv.lock`) | only from `.env.eval` at run time |
 
 ```bash
@@ -125,5 +166,6 @@ Both images run as a non-root user; the store exposes a health check at `/api/he
 ## Current status
 
 - Seller simulator (C1) and multi-turn eval scaffolding are in place; 19 tasks (10 dev, 9 frozen test).
+- Seller backend (C2 service + C3 caption approval backend) done: `src/sellerops/seller/`, `/api/seller`.
 - Agent graph (A1) done; seller tools in `harness/tools/seller.py`; eval CLI `scripts/evaluate_seller.py` (A3, first smoke run 8/10 dev tasks).
 - No CI: run `make lint test` (or `pre-commit install` once) before pushing.

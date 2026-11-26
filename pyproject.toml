@@ -27,6 +27,8 @@ dev = [
   "ruff>=0.6",
   "pre-commit>=3.7",
 ]
+# LangGraph Studio for the workflows (`make studio`): local dev server + graph UI.
+studio = ["sellerops-agent[agent]", "langgraph-cli[inmem]>=0.4"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -35,6 +37,9 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
+markers = [
+    "live: calls a real LLM API (costs money); skipped unless SELLEROPS_LIVE_TESTS=1 (make test-live)",
+]
 
 [tool.ruff]
 line-length = 110

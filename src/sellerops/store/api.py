@@ -5,7 +5,9 @@ Run from the project directory:
     make store            # or: uvicorn sellerops.store.api:app --reload
 
 Then open http://127.0.0.1:8000 for the shop and http://127.0.0.1:8000/docs
-for the API. The frontend in ``web/`` is plain HTML/JS served by this app.
+for the API. The seller backend (analytics + caption approval, ``/api/seller``)
+is mounted from ``sellerops.seller.api``; its SQLite database is created and
+seeded from the demo data on first start (``SELLEROPS_SELLER_DB``). The frontend in ``web/`` is plain HTML/JS served by this app.
 Configuration comes from ``SELLEROPS_*`` environment variables
 (see ``sellerops.settings``).
 """
@@ -28,6 +30,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from ..logging_config import configure_logging
+from ..seller import api as seller_api
 from ..settings import get_settings
 from .catalog import ProductFilter, SortKey, load_catalog, summary
 
@@ -44,7 +47,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # Load (and validate) the catalog at startup so a bad path fails fast,
     # not on the first customer request.
     catalog = load_catalog()
-    logger.info("store started", extra={"products": len(catalog.products), "version": APP_VERSION})
+    # Opens (and on first start seeds) the seller database.
+    seller = seller_api.default_services().for_store(seller_api.current_store_id())
+    logger.info("store started", extra={"products": len(catalog.products), "version": APP_VERSION,
+                                        "seller_db": str(seller.db_path),
+                                        "store_id": seller.store_id})
     yield
 
 
@@ -52,6 +59,13 @@ settings = get_settings()
 configure_logging()
 
 app = FastAPI(title="Kala Studio API", version=APP_VERSION, lifespan=lifespan)
+seller_api.install(app)
+try:  # the approval workflow needs the agent runtime ([agent] extra); the store image has only [store]
+    from ..workflows.approval import api as approval_api
+except ImportError as error:
+    logger.info("caption approval workflow not mounted", extra={"missing": error.name})
+else:
+    approval_api.install(app)
 
 if settings.cors_origins:
     app.add_middleware(

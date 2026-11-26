@@ -1,0 +1,9 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "caption_approval_demo": "./src/sellerops/workflows/approval/studio.py:caption_approval_demo",
+    "caption_approval": "./src/sellerops/workflows/approval/studio.py:caption_approval"
+  },
+  "env": ".env",
+  "python_version": "3.12"
+}

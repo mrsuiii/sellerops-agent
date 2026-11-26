@@ -69,11 +69,14 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install ".[store]" && rm -rf src
 
-# Runtime assets under SELLEROPS_PROJECT_ROOT.
+# Runtime assets under SELLEROPS_PROJECT_ROOT. data/seller_sim seeds the seller
+# database (var/seller.sqlite) on first start; mount a volume on /app/var to keep
+# captions, proposals and the audit log across container restarts.
 COPY data/store ./data/store
+COPY data/seller_sim ./data/seller_sim
 COPY web ./web
 
-RUN useradd --create-home --uid 10001 app && chown -R app:app /app
+RUN useradd --create-home --uid 10001 app && mkdir -p var && chown -R app:app /app
 USER app
 
 EXPOSE 8000

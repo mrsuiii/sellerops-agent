@@ -37,3 +37,8 @@ htmlcov/
 
 # Eval thread checkpoints (large, local replay only)
 results/**/threads.sqlite
+
+# Seller backend database (seeded locally from data/seller_sim)
+var/
+# LangGraph Studio dev server state
+.langgraph_api/

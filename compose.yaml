@@ -12,6 +12,8 @@ services:
     image: sellerops-store
     ports:
       - "8000:8000"
+    volumes:
+      - seller-db:/app/var   # seller database: captions, proposals, audit log
 
   eval:
     profiles: ["eval"]
@@ -25,3 +27,6 @@ services:
       - .env.eval
     volumes:
       - ./results/evaluation:/app/results/evaluation
+
+volumes:
+  seller-db:

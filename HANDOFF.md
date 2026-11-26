@@ -1,10 +1,66 @@
-# HANDOFF — SellerOps Agent (17 November 2026, sesi 3)
+# HANDOFF — SellerOps Agent (18 November 2026, sesi 4)
 
 Catatan serah-terima antar sesi / antar ADE. Baca ini dulu, lalu `CLAUDE.md`
 (konteks + kontrak belajar) dan `PLAN.md` (rencana per session). Bahasa kerja:
 Bahasa Indonesia.
 
-## 1. Yang selesai di sesi ini
+## 0. Sesi 4 (18 Nov): backend seller C2 + C3 (assistant, atas permintaan Nigka)
+
+Branch `feat/c2-c3-backend` (dari `feat/seller-agents`; belum di-push).
+
+- `src/sellerops/seller/analytics.py`: analitik dipindah dari
+  `simulator/store.py`; simulator kini subclass `SellerAnalytics`, jadi kunci
+  jawaban eval dan angka production berasal dari kode yang sama (test
+  paritas `tests/seller/test_analytics_parity.py`).
+- `seller/db.py`: SQLite (`SELLEROPS_SELLER_DB`, default `var/seller.sqlite`,
+  di-seed otomatis dari `data/seller_sim`). Trigger: `audit_log` dan
+  `caption_versions` append-only; caption produk hanya bisa berubah bersama
+  baris versi yang cocok.
+- `seller/service.py`: `SellerService` (analitik + state machine caption +
+  audit log) dan `InProcessSellerClient` (client production untuk
+  `make_seller_tools`; tanpa approve).
+- `seller/api.py`: `/api/seller/*`, dipasang di `store/api.py`. Header
+  `X-Seller-User` = actor; **belum ada auth**.
+- Docker store: menyalin `data/seller_sim`, DB di volume `seller-db`.
+- Seam multi-toko (21 Nov, tanpa membuat multi-tenant): `SellerService`
+  terikat ke `store_id` (DB mencatat pemiliknya di `meta`),
+  `seller/registry.py` (`SellerServices.for_store`, kini
+  `SingleStoreServices`), API menentukan toko dan actor hanya di
+  `current_store_id` dan `actor`. `AgentContext.store_id` sudah ada di harness.
+  Kalau multi-toko dibuat: implementasi `SellerServices` baru, auth mengisi
+  dua dependency itu (`seller_user` / `actor`). `thread_id` approval API sudah
+  diberi prefix toko (`kala-studio:caption-approval-CP-0001`).
+- Graph approval C3 (21 Nov): `workflows/approval/approval_graph.py`
+  (load → await_decision/interrupt → apply | cancel_flow | record_rejection
+  → draft_revision (LLM, satu-satunya dengan RetryPolicy) → submit_revision),
+  prompt di `approval_prompts.py`. Node berefek samping idempoten; jawaban
+  resume tidak valid → tanya ulang. 18 test di `tests/workflows/`.
+- Coba sendiri: `python scripts/try_caption_approval.py [--fake]` (jadi
+  seller di terminal; `q` lalu `--resume CP-xxxx`), dan integration test
+  model asli `make test-live` (`tests/integration/`, marker `live`,
+  dilewati tanpa `SELLEROPS_LIVE_TESTS=1`).
+- LangGraph Studio: `uv sync --extra dev --extra studio`, lalu `make studio`
+  (atau `make studio-fake`). Graph di `langgraph.json`:
+  `caption_approval_demo` (node `agent_proposes` + graph approval sebagai
+  subgraph; input deskripsi) dan `caption_approval` (input `proposal_id`).
+  Entry point: `workflows/approval/studio.py`; data di `var/studio/`.
+- Graph approval di API (27 Nov): `workflows/approval/runner.py`
+  (`ApprovalRunner`: proposal id → thread rantai, thread dimulai saat pertama
+  dibaca/diputuskan, lock per thread, keputusan hanya untuk versi yang sedang
+  ditunggu → `stale_decision`, node gagal → `state="error"` + retry) dan
+  `workflows/approval/api.py`: `GET …/{id}/approval`,
+  `POST …/{id}/approval/decision`, `POST …/{id}/approval/retry`. Checkpoint di
+  `var/approvals.sqlite` (`SELLEROPS_APPROVALS_DB`). Dipasang di app store
+  hanya jika extra `[agent]` ada (image Docker store belum). Route
+  approve/reject/cancel lama tetap ada sebagai panggilan service tanpa graph.
+  6 test di `tests/workflows/test_approval_api.py`.
+- 253 test lolos (+4 live di-skip), ruff bersih.
+
+Berikutnya: coba dengan model asli (`make test-live` / `make try-approval`),
+halaman seller (approval UI di atas route baru), lalu **A5 context & memory** (episodic/semantic/procedural, folder
+`harness/context/`; rencana di `PLAN.md` A5), lalu C4. Validasi judge ditunda ke akhir (keputusan Nigka 18 Nov).
+
+## 1. Yang selesai di sesi 3
 
 Arahan user 17 Nov ("lupakan baseline 0.5B, hapus simulator lama, buat
 simulator baru jadi multi-turn") dikerjakan dengan tiga default yang diusulkan

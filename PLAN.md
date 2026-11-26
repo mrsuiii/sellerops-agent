@@ -118,7 +118,8 @@ agent), `tools/` (tool production: `seller.py` di atas `SellerDataClient`, `stor
 `src/sellerops/workflows/`. Jangan membuat semua file kosong sekaligus.
 
 Urutan track (keputusan 17 Nov 2026, mengikuti spec seller agent):
-**0 → A → C (seller) → B (buyer) → D → E**. Nama track tidak diubah agar
+**0 → A → C (seller) → B (buyer) → D → E**; A5 (context & memory) disisipkan
+sesudah C3 (keputusan 18 Nov). Nama track tidak diubah agar
 rujukan lama (mis. C3, B1) tetap berlaku.
 
 Kode Track 0 (`baseline/`, simulator offer/diskon lama, dataset
@@ -284,10 +285,71 @@ Status: [x] (17 Nov 2026), kecuali memory `Store` (opsional).
 - [x] Replay dari `checkpoint_id` (`scripts/replay_eval_thread.py`): episode
   simulator dibangun ulang dari tool call sebelum checkpoint; kegagalan
   caption baseline direproduksi 2/2.
-- [ ] Opsional: memory preferensi lewat LangGraph `Store`.
+- [ ] ~~Opsional: memory preferensi lewat LangGraph `Store`~~ → dipindah ke A5.
 
 DoD: satu failed trajectory bisa direproduksi (caption); ringkasan multi-turn
 teruji (`tests/harness/test_context.py`).
+
+### Session A5 — Context engineering & memory (episodic, semantic, procedural)
+
+Status: [ ] — dikerjakan **sesudah C3** (alasan reject caption = sumber
+memori pertama). Keputusan 18 Nov 2026.
+
+Tujuan: satu komponen yang menentukan *apa saja* yang masuk ke prompt, dari
+mana, seberapa banyak, dan dalam urutan apa, alih-alih menempel seluruh
+thread. Pembagian memori mengikuti CoALA:
+
+| Jenis | Isi | Contoh SellerOps | Tempat |
+|---|---|---|---|
+| Working | percakapan berjalan | pesan + hasil tool thread ini | checkpointer (sudah ada) |
+| Episodic | kejadian | "CP-0003 ditolak: terlalu panjang" | `Store` + data backend |
+| Semantic | fakta | "seller selalu pakai 30 hari", RAG katalog | `Store`, indeks RAG |
+| Procedural | cara bertindak | system prompt, deskripsi tool, "caption tanpa emoji" | kode ber-versi + `Store` per seller |
+
+Susunan prompt (urut dari paling stabil, supaya prompt cache tidak rusak):
+procedural umum → procedural seller → semantic seller → episodic relevan →
+ringkasan thread → working memory. Budget token per bagian; yang dibuang
+lebih dulu saat penuh: episodic paling tidak relevan, lalu hasil tool lama;
+procedural tidak pernah dibuang.
+
+Rencana folder (dibuat bertahap, jangan semua file kosong sekaligus):
+
+```
+src/sellerops/harness/context/
+├── builder.py      # susun prompt: urutan bagian, budget token, breakpoint cache
+├── compaction.py   # dari graph.py: summarize, repair_tool_pairs, + buang hasil tool lama
+├── memory.py       # tipe memori, namespace Store per store_id, baca/tulis
+└── extract.py      # jalur tulis: ekstraksi memori setelah thread selesai
+```
+
+`harness/context` tetap generik (tidak tahu seller); sumber memori spesifik
+domain (mis. feedback reject C3) ditulis di `seller/` / `workflows/` dan
+dioper sebagai *provider*, seperti tool dioper ke `build_agent_graph`.
+
+Langkah:
+- [ ] Desain (Nigka): format memori (isi, sumber/provenance, waktu), budget
+  per bagian, aturan prioritas saat penuh.
+- [ ] `builder.py` (Nigka): context builder dipakai node `model`.
+- [ ] Pindahkan compaction dari `graph.py` ke `context/compaction.py` +
+  *tool result clearing*: hasil tool dari giliran lama diganti ringkasan
+  pendek di prompt (state tetap utuh). (assistant, mekanis)
+- [ ] Sumber pertama, satu per jenis: procedural = prompt yang ada;
+  semantic = preferensi periode seller; episodic = alasan reject caption
+  dari backend C3 (deterministik, tanpa LLM).
+- [ ] Jalur tulis bertahap: deterministik dari backend dulu → ekstraksi
+  setelah thread selesai → (opsional) tool `remember`.
+- [ ] Penjagaan: namespace per `store_id` (tidak bocor antar seller),
+  provenance per memori, seller bisa melihat/menghapus, memori = data bukan
+  instruksi (tidak boleh mengalahkan system prompt).
+- [ ] Eval: task "seller kembali di thread baru" (memori harus dipakai, mis.
+  tidak menanyakan ulang periode; caption revisi menghindari alasan reject
+  lama). Eval biasa menjalankan agent **tanpa** memori agar task tetap
+  terisolasi. Cek juga celah: konteks membengkak di tengah giliran (banyak
+  tool besar) dan kualitas ringkasan.
+
+DoD: prompt disusun oleh builder dengan budget yang teruji; satu memori per
+jenis terbukti dipakai di task eval thread baru; memori satu seller tidak
+pernah muncul di prompt seller lain (test).
 
 ---
 
@@ -331,20 +393,30 @@ hari (`target_days`, bisa diubah), "perlu restock segera" = habis ≤ 7 hari.
 
 ### Session C2 — Analisis penjualan (agent)
 
-Status: [ ]
+Status: [x] (18 Nov 2026)
 
 - [x] Tool seller di `harness/tools/seller.py` (`make_seller_tools(client)`,
   Protocol `SellerDataClient`); eval memakai tool yang sama dengan
   `SellerEpisode` sebagai client (17 Nov).
-- [ ] Service layer + in-process client untuk production (endpoint seller di
-  FastAPI); seller agent = graph agent Track A.
-- [ ] Task eval dengan jawaban yang bisa diverifikasi dari data sintetis.
+- [x] Service layer + in-process client untuk production (18 Nov, assistant):
+  `seller/analytics.py` (analitik bersama; simulator kini memakainya juga,
+  test paritas), `seller/service.py` (`SellerService` di SQLite,
+  `InProcessSellerClient`), endpoint `/api/seller/*` (`seller/api.py`).
+  Seller agent = graph agent Track A + `make_seller_tools(InProcessSellerClient(service))`.
+- [x] Task eval dengan jawaban yang bisa diverifikasi dari data sintetis
+  (19 task C1; eval dev pass@1 1.00, lihat `docs/error-analysis-2026-11-17.md`).
 
 DoD: seller agent menjawab pertanyaan analisis dan lolos verifier.
 
 ### Session C3 — Perbaikan caption dengan approval (workflow)
 
-Status: [ ]
+Status: [~] backend selesai (18 Nov); graph approval selesai (21 Nov:
+`load` + `await_decision` ditulis bersama Nigka, sisanya assistant atas
+permintaan eksplisit Nigka) di `workflows/approval/` (`approval_graph.py`,
+`approval_prompts.py`, `approval_state.py`; 18 test di
+`tests/workflows/`). Wiring ke API selesai 27 Nov
+(`workflows/approval/runner.py` + `api.py`, route `…/{id}/approval`).
+Tinggal: coba dengan model asli (tutorial langkah 11) + halaman seller.
 
 - [ ] `StateGraph` custom: node LLM mengusulkan caption → `interrupt()` untuk
   approve/reject → `Command(resume=...)` → node backend PATCH → audit log →
@@ -359,6 +431,36 @@ Keputusan (17 Nov 2026, Nigka):
   `stop_reason="max_rejections"` (seller menolak terus-menerus).
 - Backend (DB + service) tetap sumber kebenaran: status proposal, versi caption,
   audit log, revert. Node graph hanya memanggil service; revert di luar graph.
+- Usulan caption **reaktif saja** (18 Nov): dibuat hanya saat seller
+  memintanya di chat. Tidak ada workflow terjadwal yang mengusulkan caption
+  sendiri dari analitik.
+
+Backend C3 **selesai** (18 Nov, assistant): `seller/db.py` (tabel
+`caption_proposals`, `caption_versions`, `audit_log`; trigger append-only dan
+"caption hanya berubah bersama versi baru"), state machine di
+`seller/service.py` (pending → applied / rejected / stale, applied →
+reverted; approve = apply dalam satu transaksi; revisi lewat `revision_of`,
+maks `MAX_REJECTIONS = 5`), endpoint approve/reject/revert, 40+ test
+termasuk approve bersamaan dan rollback saat gagal di tengah.
+
+**Sisa untuk Nigka: graph approval** (`src/sellerops/workflows/caption_approval.py`).
+Usulan desain (state, node, alur, keputusan, test): `docs/c3-approval-graph-design.md`.
+Tutorial langkah demi langkah (11 test, sudah dicek bisa dipenuhi): `docs/tutorial-c3-approval-graph.md`.
+Yang dipanggil graph dari service:
+
+| Node | Panggilan service |
+|---|---|
+| propose (LLM mengisi field) | `service.propose_caption(pid, reason, actor="agent", name=…, description=…, tags=…, revision_of=None / id ditolak)` |
+| tunggu seller | `interrupt({"proposal": …})` → `Command(resume={"decision": "approve" \| "reject", "feedback": …, "user": …})` |
+| approve | `service.approve(proposal_id, actor=f"seller:{user}")` → `SellerError("stale_proposal")` bila caption sudah berubah |
+| reject | `service.reject(proposal_id, actor=…, feedback=…)`; `rejections_in_chain` di hasilnya |
+| batal | `service.cancel(proposal_id, actor=…)` → `cancelled` (keputusan 20 Nov) |
+| stop | `rejections_in_chain >= MAX_REJECTIONS` → `stop_reason="max_rejections"` (service juga menolak revisi ke-6: `max_rejections`) |
+
+Revert tetap di luar graph (endpoint / `service.revert`). Pertanyaan desain
+untuk Nigka: apa isi state (proposal_id, feedback, jumlah reject)? Node mana
+yang boleh memanggil LLM? Apa yang terjadi bila resume datang untuk proposal
+yang sudah `stale`?
 
 Bagian inti untuk user: desain state, node/edge approval, dan audit log.
 
