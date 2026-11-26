@@ -119,7 +119,8 @@ agent), `tools/` (tool production: `seller.py` di atas `SellerDataClient`, `stor
 
 Urutan track (keputusan 17 Nov 2026, mengikuti spec seller agent):
 **0 → A → C (seller) → B (buyer) → D → E**; A5 (context & memory) disisipkan
-sesudah C3 (keputusan 18 Nov). Nama track tidak diubah agar
+sesudah C3 (keputusan 18 Nov). Keputusan 27 Nov: target dekat berhenti di
+**A5** (C3 tuntas → C3b → A5); C4 dan buyer agent (Track B) di sesi lain. Nama track tidak diubah agar
 rujukan lama (mis. C3, B1) tetap berlaku.
 
 Kode Track 0 (`baseline/`, simulator offer/diskon lama, dataset
@@ -292,8 +293,10 @@ teruji (`tests/harness/test_context.py`).
 
 ### Session A5 — Context engineering & memory (episodic, semantic, procedural)
 
-Status: [ ] — dikerjakan **sesudah C3** (alasan reject caption = sumber
-memori pertama). Keputusan 18 Nov 2026.
+Status: [ ] — dikerjakan **sesudah C3 dan C3b** (alasan reject caption =
+sumber memori pertama; compaction perlu placeholder gambar dari C3b).
+Keputusan 18 Nov 2026, urutan C3b diperbarui 27 Nov. Target dekat berhenti di
+sini.
 
 Tujuan: satu komponen yang menentukan *apa saja* yang masuk ke prompt, dari
 mana, seberapa banyak, dan dalam urutan apa, alih-alih menempel seluruh
@@ -416,7 +419,10 @@ permintaan eksplisit Nigka) di `workflows/approval/` (`approval_graph.py`,
 `approval_prompts.py`, `approval_state.py`; 18 test di
 `tests/workflows/`). Wiring ke API selesai 27 Nov
 (`workflows/approval/runner.py` + `api.py`, route `…/{id}/approval`).
-Tinggal: coba dengan model asli (tutorial langkah 11) + halaman seller.
+Halaman seller `/seller` selesai 27 Nov (`web/seller.*`; toko menampilkan
+caption dari DB seller). Merge ke `main` lewat PR #7. Tinggal: coba reject →
+revisi dengan model asli (`make test-live` / `make try-approval` /
+`make store` + `/seller`; berbayar).
 
 - [ ] `StateGraph` custom: node LLM mengusulkan caption → `interrupt()` untuk
   approve/reject → `Command(resume=...)` → node backend PATCH → audit log →
@@ -466,6 +472,60 @@ Bagian inti untuk user: desain state, node/edge approval, dan audit log.
 
 DoD: caption tidak pernah berubah tanpa approval; revert terbukti lewat test.
 
+### Session C3b — Gambar produk sebagai input caption (multimodal)
+
+Status: [ ] — ditambahkan 27 Nov 2026, sesudah C3 tuntas dan sebelum A5.
+
+Tujuan: model melihat foto produk saat menulis atau merevisi caption, supaya
+caption bisa menyebut hal yang terlihat (warna, motif, potongan) tanpa
+mengarang. Sekarang `draft_revision` hanya menerima teks (caption + data
+produk).
+
+Rancangan (dari diskusi 21 Nov):
+
+- **Format pesan**: *standard content blocks* LangChain (`{"type": "image",
+  "base64": …, "mime_type": …}` di `HumanMessage`), bukan format SDK
+  Anthropic langsung, agar tetap jalan lewat `init_chat_model` dan provider
+  lain.
+- **Gambar diambil backend, bukan model**: backend mengunduh dari URL katalog
+  (hanya host katalog yang dikenal, mis. `cdn.dummyjson.com`), mengecilkan
+  (sisi terpanjang ≈1024 px, cukup untuk caption dan hemat token: ≈1.000–1.500
+  token per gambar), menyimpan di cache berdasarkan hash SHA-256
+  (`var/images/`), lalu mengirim base64. Model tidak pernah menerima URL
+  mentah (tidak ada fetch dari URL yang dipilih model, hasil deterministik
+  untuk test/replay).
+- **Jejak di proposal**: proposal menyimpan hash gambar yang dipakai
+  (`inputs`, kolom baru atau di `changes` meta) sehingga audit bisa menjawab
+  "caption ini ditulis setelah melihat gambar apa".
+- **Grounding**: prompt membedakan fakta data (bahan, garansi, harga) dan hal
+  yang terlihat di foto. Yang hanya terlihat (mis. "biru tua") boleh ditulis,
+  klaim yang tidak terlihat dan tidak ada di data tetap dilarang. Ditambah cek
+  di eval/judge.
+- **Kemampuan model**: flag `supports_vision(model)` di `harness/models.py`
+  (seperti `supports_prompt_caching`); kalau model tidak mendukung gambar,
+  graph jatuh ke mode teks saja, bukan gagal.
+- **Konteks (kaitan A5)**: gambar mahal di prompt. Di compaction A5, gambar
+  dari giliran lama diganti placeholder teks (`[gambar FS180 #a1b2c3, sudah
+  dilihat]`); state tetap utuh.
+
+Langkah:
+- [ ] Pipeline gambar backend: unduh, batasi host, resize, hash, cache
+  (assistant, mekanis; dependency baru `Pillow`).
+- [ ] `supports_vision` + mode teks saja sebagai cadangan (assistant).
+- [ ] Desain (Nigka): gambar mana yang dikirim (thumbnail saja atau semua
+  `images`, batas jumlah), kapan (draft pertama oleh chat agent lewat tool
+  vs. hanya di `draft_revision`), dan bagaimana prompt memisahkan "terlihat"
+  vs "fakta data".
+- [ ] Perubahan node `draft_revision` / tool chat agent (Nigka; agentic).
+- [ ] Jejak gambar di proposal + tampil di halaman `/seller` (assistant).
+- [ ] Test: fake model menerima content block gambar; host di luar daftar
+  ditolak; cache hit tidak mengunduh ulang; model tanpa vision tetap jalan.
+  Satu test live: caption revisi menyebut warna yang benar.
+
+DoD: revisi caption memakai foto produk lewat backend (tanpa URL ke model),
+hash gambar tercatat di proposal, dan alur tetap jalan untuk model tanpa
+vision.
+
 ### Session C4 — KPI dan laporan mingguan (workflow)
 
 Status: [ ]
@@ -479,6 +539,8 @@ diperiksa terhadap angka.
 ---
 
 ## Track B — Buyer agent di atas Kala Studio (setelah Track C)
+
+Ditunda ke sesi berikutnya (keputusan 27 Nov: target dekat sampai A5).
 
 ### Session B1 — Tool Kala Studio
 
@@ -543,8 +605,12 @@ fitur selesai dan future work.
 
 ## Current next session
 
-**A2** (robustness: `RetryPolicy`, fallback, timeout) dan **A3** (CLI eval
-multi-turn). Catatan dari uji API A1: model menghitung sendiri angka turunan
-di `message` (mis. "turun sekitar 34%") yang tidak ada di output tool;
-verifier hanya mengecek `final.data`. Perlu diputuskan: tambah field
-pembanding di tool, perketat prompt, atau nilai `message` lewat judge (A3).
+(27 Nov 2026) Target dekat: **C3 tuntas → C3b → A5**, lalu berhenti dulu.
+
+1. **C3, tuntaskan**: satu putaran reject → revisi dengan model asli
+   (berbayar, atas persetujuan Nigka).
+2. **C3b**: gambar produk sebagai input caption (pipeline backend oleh
+   assistant; desain prompt/node oleh Nigka).
+3. **A5**: context engineering & memory (desain + `builder.py` oleh Nigka).
+
+C4 dan Track B (buyer agent) di sesi lain. Validasi judge tetap di akhir.

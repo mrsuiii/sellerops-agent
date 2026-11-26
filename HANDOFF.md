@@ -61,9 +61,12 @@ Branch `feat/c2-c3-backend` (dari `feat/seller-agents`; belum di-push).
   caption berubah). `make store-fake` = tanpa biaya LLM.
 - 254 test lolos (+4 live di-skip), ruff bersih.
 
-Berikutnya: coba dengan model asli (`make test-live` / `make try-approval`),
-lalu **A5 context & memory** (episodic/semantic/procedural, folder
-`harness/context/`; rencana di `PLAN.md` A5), lalu C4. Validasi judge ditunda ke akhir (keputusan Nigka 18 Nov).
+Berikutnya (27 Nov; PR #7 sudah di-merge ke `main`): target dekat sampai
+A5. (1) coba reject → revisi dengan model asli (`make test-live` /
+`make try-approval`; berbayar), (2) **C3b** gambar produk sebagai input
+caption (`PLAN.md` C3b), (3) **A5 context & memory** (episodic/semantic/
+procedural, folder `harness/context/`; rencana di `PLAN.md` A5). C4 dan
+buyer agent (Track B) di sesi lain. Validasi judge ditunda ke akhir (keputusan Nigka 18 Nov).
 
 ## 1. Yang selesai di sesi 3
 
