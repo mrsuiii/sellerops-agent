@@ -1,4 +1,4 @@
-.PHONY: install lint fix test test-live try-approval studio studio-fake store docker sim eval-smoke eval docker-eval-build docker-eval-smoke docker-eval
+.PHONY: install lint fix test test-live try-approval studio studio-fake store store-fake docker sim eval-smoke eval docker-eval-build docker-eval-smoke docker-eval
 
 install:        ## Core + store + eval + dev tools (no torch)
 	pip install -e ".[dev]"
@@ -33,8 +33,11 @@ studio:         ## LangGraph Studio for the workflows (real LLM; needs: uv sync 
 studio-fake:    ## Same, with a free fake model writing the revisions
 	SELLEROPS_STUDIO_FAKE=1 langgraph dev --allow-blocking
 
-store:          ## Run the Kala Studio demo store on :8000
+store:          ## Run the Kala Studio demo store on :8000 (seller page: /seller; revisions use the real LLM)
 	uvicorn sellerops.store.api:app --reload
+
+store-fake:     ## Same, with a free fake model drafting the caption revisions
+	SELLEROPS_APPROVAL_FAKE=1 uvicorn sellerops.store.api:app --reload
 
 docker:         ## Production store image on :8000
 	docker build --target store -t sellerops-store . && docker run --rm -p 8000:8000 sellerops-store

@@ -16,6 +16,7 @@ installed. Business errors reuse the seller API's ``SellerError`` mapping.
 
 from __future__ import annotations
 
+import os
 import threading
 from functools import lru_cache
 from typing import Annotated, Any
@@ -35,6 +36,11 @@ router = APIRouter(prefix="/api/seller/caption-proposals", tags=["seller: captio
 
 @lru_cache(maxsize=1)
 def default_model() -> BaseChatModel:
+    """The LLM that drafts revisions; ``SELLEROPS_APPROVAL_FAKE=1`` swaps in a free fake (``make store-fake``)."""
+    if os.environ.get("SELLEROPS_APPROVAL_FAKE") == "1":
+        from sellerops.workflows.approval.studio import FakeDraftModel
+
+        return FakeDraftModel()
     from sellerops.harness.models import get_chat_model
 
     return get_chat_model().with_config(tags=["caption-approval"])  # type: ignore[return-value]

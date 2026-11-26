@@ -54,10 +54,15 @@ Branch `feat/c2-c3-backend` (dari `feat/seller-agents`; belum di-push).
   hanya jika extra `[agent]` ada (image Docker store belum). Route
   approve/reject/cancel lama tetap ada sebagai panggilan service tanpa graph.
   6 test di `tests/workflows/test_approval_api.py`.
-- 253 test lolos (+4 live di-skip), ruff bersih.
+- Halaman seller `/seller` (27 Nov, `web/seller.*`): antrean usulan, diff
+  lama/baru, approve / reject (+ add_fields) / cancel lewat route approval,
+  revert, audit log. Toko kini menampilkan caption dari DB seller
+  (`shop_catalog` di `store/api.py`, indeks BM25 dibangun ulang hanya saat
+  caption berubah). `make store-fake` = tanpa biaya LLM.
+- 254 test lolos (+4 live di-skip), ruff bersih.
 
 Berikutnya: coba dengan model asli (`make test-live` / `make try-approval`),
-halaman seller (approval UI di atas route baru), lalu **A5 context & memory** (episodic/semantic/procedural, folder
+lalu **A5 context & memory** (episodic/semantic/procedural, folder
 `harness/context/`; rencana di `PLAN.md` A5), lalu C4. Validasi judge ditunda ke akhir (keputusan Nigka 18 Nov).
 
 ## 1. Yang selesai di sesi 3

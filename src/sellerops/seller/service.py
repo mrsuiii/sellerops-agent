@@ -149,6 +149,13 @@ class SellerService:
             ids = [r["id"] for r in conn.execute(sql + " ORDER BY id DESC LIMIT ?", (*args, limit))]
             return [self._proposal(conn, i) for i in ids]
 
+    def captions(self) -> dict[str, dict[str, Any]]:
+        """The caption every product shows now (``name``, ``description``, ``tags``), by product id."""
+        with self._connect() as conn:
+            rows = conn.execute("SELECT product_id, name, description, tags FROM products").fetchall()
+        return {r["product_id"]: {"name": r["name"], "description": r["description"],
+                                  "tags": json.loads(r["tags"])} for r in rows}
+
     def caption_history(self, product_id: str) -> list[dict[str, Any]]:
         """Every caption the product had, oldest first; the last one is current."""
         with self._connect() as conn:

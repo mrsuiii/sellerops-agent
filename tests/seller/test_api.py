@@ -97,3 +97,16 @@ def test_request_bodies_reject_unknown_fields(client) -> None:
     response = client.post("/api/seller/caption-proposals", headers=HEADERS,
                            json={"product_id": "FS180", "reason": "r", "name": "New", "status": "applied"})
     assert response.status_code == 422
+
+
+def test_shop_shows_the_applied_caption(client, service) -> None:
+    before = client.get("/api/products/FS180").json()
+    pid = service.propose_caption("FS180", "clearer", actor="agent", name="Pea Day Dress",
+                                  tags=["dress", "pea"])["proposal_id"]
+    assert client.get("/api/products/FS180").json()["name"] == before["name"]   # pending: shop unchanged
+    service.approve(pid, actor="seller:seller-1")
+    shown = client.get("/api/products/FS180").json()
+    assert (shown["name"], shown["tags"], shown["images"]) == ("Pea Day Dress", ["dress", "pea"], before["images"])
+    assert client.get("/api/products", params={"q": "Pea Day"}).json()["items"][0]["product_id"] == "FS180"
+    service.revert(pid, actor="seller:seller-1")
+    assert client.get("/api/products/FS180").json()["name"] == before["name"]

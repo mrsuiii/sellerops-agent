@@ -56,7 +56,8 @@ The existing Conda environment `llm-post-training` still works; run
 ```bash
 make test     # pytest
 make lint     # ruff
-make store    # Kala Studio on http://127.0.0.1:8000 (API docs at /docs)
+make store    # Kala Studio on http://127.0.0.1:8000 (API docs at /docs, seller page at /seller)
+make store-fake    # same, a free fake model drafts the caption revisions
 make docker   # build and run the store container
 make test-live     # integration tests with the real LLM (costs money; needs .env)
 make try-approval  # play the seller in the caption approval graph (real LLM)
