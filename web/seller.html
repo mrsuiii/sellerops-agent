@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kala Studio · Seller</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/seller.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="/seller">KALA<span>studio</span></a>
+    <span class="role-badge">Seller</span>
+    <a class="link-btn shop-link" href="/" target="_blank" rel="noopener">Lihat toko ↗</a>
+    <label class="who">Masuk sebagai
+      <input id="user" maxlength="64" pattern="[\w.@-]+" autocomplete="off" spellcheck="false">
+    </label>
+  </header>
+
+  <main class="seller">
+    <section class="intro">
+      <p class="eyebrow">Approval caption</p>
+      <h1>Usulan caption dari agent</h1>
+      <p class="hero-sub">Setujui, tolak dengan alasan (agent menulis revisi), atau batalkan.
+        Caption baru tampil di toko setelah disetujui dan bisa dikembalikan.</p>
+    </section>
+
+    <div class="seller-layout">
+      <aside class="queue">
+        <div class="queue-head">
+          <nav class="chips" id="status-chips" aria-label="Status">
+            <button class="chip" data-status="pending" aria-pressed="true">Menunggu</button>
+            <button class="chip" data-status="">Semua</button>
+          </nav>
+          <button class="link-btn" id="new-open" type="button">+ Usulan baru</button>
+        </div>
+        <div id="queue" class="queue-list" aria-live="polite"></div>
+      </aside>
+
+      <section class="detail" id="detail" aria-live="polite">
+        <p class="empty">Pilih usulan di kiri.</p>
+      </section>
+    </div>
+  </main>
+
+  <div class="drawer-backdrop" id="new-backdrop" hidden></div>
+  <aside class="drawer" id="new-drawer" aria-label="Usulan baru" hidden>
+    <div class="drawer-head">
+      <h2>Usulan baru (demo)</h2>
+      <button class="link-btn" id="new-close" type="button">Tutup</button>
+    </div>
+    <form id="new-form" class="new-form">
+      <p class="hint">Biasanya chat agent yang membuat usulan. Form ini untuk mencoba alurnya.</p>
+      <label>Produk <select id="new-product" required></select></label>
+      <label>Nama <input id="new-name" maxlength="80" placeholder="(tidak diubah)"></label>
+      <label>Deskripsi <textarea id="new-description" rows="6" placeholder="(tidak diubah)"></textarea></label>
+      <label>Tag <input id="new-tags" placeholder="pisahkan dengan koma (tidak diubah)"></label>
+      <label>Alasan <input id="new-reason" required value="lebih menarik"></label>
+      <button class="primary" type="submit">Kirim usulan</button>
+    </form>
+  </aside>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="/static/seller.js"></script>
+</body>
+</html>

@@ -23,7 +23,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+DROP_CAUSES = ("out_of_stock", "negative_reviews", "price", "seasonality", "other")
 
 
 class FinalAnswer(BaseModel):
@@ -46,6 +48,29 @@ class FinalAnswer(BaseModel):
 
     message: str = Field(min_length=1, description="The answer for the seller, in the seller's language.")
     data: dict[str, Any] = Field(description="Key facts of the answer as structured values (see above).")
+
+    @model_validator(mode="after")
+    def _check_data_shape(self) -> FinalAnswer:
+        """Shape rules that hold for every question (no task knowledge needed).
+
+        A violation raises ValidationError, which the graph returns to the model as
+        an ``invalid_arguments`` tool error so it can call ``final`` again (RCA-5,
+        docs/error-analysis-2026-11-17.md).
+        """
+        data = self.data
+        if "product_id" in data and not isinstance(data["product_id"], str):
+            raise ValueError("data.product_id must be one product id string, e.g. 'FS186'")
+        ids = data.get("product_ids")
+        if ids is not None and not (isinstance(ids, list) and all(isinstance(i, str) for i in ids)):
+            raise ValueError("data.product_ids must be a list of product id strings")
+        if "cause" in data or "complaint" in data:
+            key = "cause" if "cause" in data else "complaint"
+            if "product_ids" in data or not isinstance(data.get("product_id"), str):
+                raise ValueError(f"an answer with data.{key} is about one product: give data.product_id "
+                                 "(the main product) and no product_ids; mention others in the message")
+        if "cause" in data and data["cause"] not in DROP_CAUSES:
+            raise ValueError(f"data.cause must be one of {list(DROP_CAUSES)}")
+        return self
 
     def to_action(self) -> dict[str, Any]:
         return {"type": "final", **self.model_dump()}

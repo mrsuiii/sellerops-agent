@@ -26,3 +26,26 @@ def test_terminal_action_validates() -> None:
 def test_tool_names_are_the_titles() -> None:
     assert FinalAnswer.model_config["title"] == "final"
     assert AskUser.model_config["title"] == "ask_user"
+
+
+@pytest.mark.parametrize("data", [
+    {"product_ids": ["FS186", "FS188"], "cause": "out_of_stock"},       # RCA-5: cause needs one product_id
+    {"product_id": ["FS186"], "cause": "out_of_stock"},
+    {"product_id": "FS186", "cause": "stock habis"},
+    {"complaint": "kekecilan"},
+    {"product_ids": "FS1,FS2"},
+])
+def test_final_rejects_malformed_data(data) -> None:
+    with pytest.raises(ValidationError):
+        FinalAnswer.model_validate({"message": "m", "data": data})
+
+
+@pytest.mark.parametrize("data", [
+    {"product_id": "FS186", "cause": "out_of_stock"},
+    {"product_id": "FS188", "complaint": "ukuran kekecilan"},
+    {"period": "last_30_days", "product_ids": ["FS1", "FS2"]},
+    {"period": "last_30_days", "revenue_idr": 1, "orders": 2},
+    {},
+])
+def test_final_accepts_well_formed_data(data) -> None:
+    assert FinalAnswer.model_validate({"message": "m", "data": data}).to_action()["data"] == data

@@ -55,6 +55,10 @@ dan `README.md`. Versi lama TARGET/PLAN ada di `../../archive/`.
   `system_prompt` wajib dioper ke `build_agent_graph`. Simulator seller
   (`generator.py`, `store.py`, `episode.py`) ada di `src/sellerops/simulator/`,
   khusus eval; datanya di `data/seller_sim/` (`make sim`).
+  Backend seller production ada di `src/sellerops/seller/` (`analytics.py`
+  dipakai bersama simulator, `db.py` SQLite, `service.py` `SellerService` +
+  `InProcessSellerClient`, `registry.py` `SellerServices.for_store`, `api.py` `/api/seller`); `seller` tidak mengimpor
+  `harness`, `evaluation`, atau `simulator`.
   `harness` tidak pernah mengimpor `evaluation` atau `simulator`; tool dan
   `terminal_tools` diterima graph sebagai argumen. Workflow di
   `src/sellerops/workflows/`.
@@ -108,9 +112,19 @@ Detail lengkap dan langkah berikutnya: **`HANDOFF.md`**.
   dengan skenario tertanam, read model, 19 task (10 dev, 9 test frozen),
   `ScriptedUser`/`LLMUser`, runner giliran, verifier. Lihat
   `src/sellerops/evaluation/README.md`.
-- Agent: `harness/models.py` (`ChatAnthropic`), `harness/state.py` +
-  `harness/graph.py` (A1, diimplementasi assistant atas permintaan eksplisit
-  Nigka, 17 Nov). Semua test graph lolos; belum diuji dengan API sungguhan.
+- **Track A selesai** (A1–A4, diimplementasi assistant atas permintaan
+  eksplisit Nigka, 17 Nov): `harness/graph.py` (retry, fallback, budget,
+  error terstruktur, runtime context `AgentContext`, node `summarize`),
+  `harness/errors.py`, `harness/trajectory.py` (SQLite, ekspor, replay).
+  Eval dev Haiku 5.5: pass@1 = pass^3 = 1.00 setelah error analysis
+  (`docs/error-analysis-2026-11-17.md`). Kontrak belajar tetap berlaku untuk
+  graph Track C (approval caption C3, KPI C4).
+- **Backend seller C2 + C3** selesai (18 Nov, assistant): SQLite, state
+  machine caption (approve = apply atomik, stale, reject + revisi maks 5,
+  revert sebagai versi baru), audit log append-only, `/api/seller`. Graph
+  approval C3 (`workflows/approval/`) selesai 21 Nov, ditulis assistant atas
+  permintaan eksplisit Nigka; di API lewat `workflows/approval/api.py`
+  (`/caption-proposals/{id}/approval`, 27 Nov).
 - **Kala Studio** (PR #2): FastAPI + HTML/CSS/JS, katalog DummyJSON dalam IDR,
   recommender BM25 di `POST /api/recommend`; keranjang masih di browser
   (`localStorage`). Belum ada tool agent.

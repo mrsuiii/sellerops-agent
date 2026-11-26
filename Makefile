@@ -1,4 +1,4 @@
-.PHONY: install lint fix test store docker sim eval-smoke eval docker-eval-build docker-eval-smoke docker-eval
+.PHONY: install lint fix test test-live try-approval studio studio-fake store store-fake docker sim eval-smoke eval docker-eval-build docker-eval-smoke docker-eval
 
 install:        ## Core + store + eval + dev tools (no torch)
 	pip install -e ".[dev]"
@@ -12,6 +12,12 @@ fix:
 test:
 	pytest -q
 
+test-live:      ## Integration tests against the real LLM (costs money; needs .env)
+	SELLEROPS_LIVE_TESTS=1 pytest -q -m live -s tests/integration
+
+try-approval:   ## Play the seller in the caption approval graph (real LLM; --fake for free)
+	python scripts/try_caption_approval.py
+
 sim:            ## Regenerate data/seller_sim/ (dataset + eval tasks)
 	python scripts/generate_seller_sim.py
 
@@ -21,8 +27,17 @@ eval-smoke:     ## Claude API: dev tasks x1, scripted user (cheap)
 eval:           ## Claude API (+ NVIDIA judge): dev tasks x3, LLM user
 	python scripts/evaluate_seller.py --user llm --k 3 --judge
 
-store:          ## Run the Kala Studio demo store on :8000
+studio:         ## LangGraph Studio for the workflows (real LLM; needs: uv sync --extra dev --extra studio)
+	langgraph dev --allow-blocking
+
+studio-fake:    ## Same, with a free fake model writing the revisions
+	SELLEROPS_STUDIO_FAKE=1 langgraph dev --allow-blocking
+
+store:          ## Run the Kala Studio demo store on :8000 (seller page: /seller; revisions use the real LLM)
 	uvicorn sellerops.store.api:app --reload
+
+store-fake:     ## Same, with a free fake model drafting the caption revisions
+	SELLEROPS_APPROVAL_FAKE=1 uvicorn sellerops.store.api:app --reload
 
 docker:         ## Production store image on :8000
 	docker build --target store -t sellerops-store . && docker run --rm -p 8000:8000 sellerops-store

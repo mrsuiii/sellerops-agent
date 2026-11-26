@@ -29,7 +29,8 @@ def test_call_goes_through_the_episode(episode) -> None:
     output = json.loads(tools["get_sales_summary"].invoke({"period": "last_7_days"}))
     assert output["ok"] and output["result"]["period"]["name"] == "last_7_days"
     step = episode.snapshot()["history"][0]
-    assert step["tool"] == "get_sales_summary" and step["arguments"] == {"period": "last_7_days"}
+    assert step["tool"] == "get_sales_summary"
+    assert step["arguments"] == {"period": "last_7_days", "compare_to_previous": False}
 
 
 def test_business_error_is_an_observation(episode) -> None:

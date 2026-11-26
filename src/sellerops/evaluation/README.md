@@ -119,3 +119,21 @@ di `metadata` config: LangGraph membacanya dan giliran kedua dst. jadi no-op.
 Agregasi: `pass_metrics` (pass@k, minimal satu dari k percobaan lulus) dan
 `pass_hat_metrics` (pass^k τ-bench, semua k percobaan lulus) dari hasil
 `decision` per task dan repetisi.
+
+## Error analysis, replay, regression
+
+- `docs/error-analysis-2026-11-17.md`: RCA kegagalan dev (caption mengubah
+  field yang tidak diminta, klarifikasi tidak lengkap, tren dikarang, bug
+  `run_id`, kontrak `final.data`) dengan angka sebelum/sesudah perbaikan.
+- `scripts/show_failures.py [--judge] [--task ...]`: trajectory gagal yang
+  mudah dibaca (urutan pesan persis dari `records.jsonl`).
+- `scripts/evaluate_seller.py --save-threads` lalu
+  `scripts/replay_eval_thread.py --task ... [--times N]`: ulangi percakapan
+  dari checkpoint sebelum keputusan terakhir model (episode simulator
+  dibangun ulang dari tool call sebelumnya).
+- `scripts/judge_labels.py export|score`: validasi judge terhadap label
+  manusia (TPR/TNR/kappa).
+- `tests/evaluation/test_eval_regressions.py`: record kegagalan nyata harus
+  tetap gagal; aturan prompt hasil RCA dijaga.
+- Pembanding model: `--agent-provider openai_compatible --agent-model <id>`
+  mengganti agent saja (user simulator tetap Claude).

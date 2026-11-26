@@ -1,0 +1,52 @@
+{
+ "trials": 3,
+ "tasks": 1,
+ "k": 3,
+ "errors": 0,
+ "overall": {
+  "pass@1": 1.0,
+  "pass@3": 1.0,
+  "pass^1": 1.0,
+  "pass^3": 1.0
+ },
+ "by_family": {
+  "sales_drop": {
+   "tasks": 1,
+   "pass@1": 1.0,
+   "pass@3": 1.0,
+   "pass^1": 1.0,
+   "pass^3": 1.0
+  }
+ },
+ "failed_checks": {},
+ "stop_reasons": {
+  "final": 3
+ },
+ "latency_s": {
+  "p50": 8.583,
+  "p95": 9.506
+ },
+ "avg_tool_calls": 2.33,
+ "avg_agent_turns": 1,
+ "asked_when_needed": [
+  0,
+  0
+ ],
+ "usage_total": {
+  "input_tokens": 42058,
+  "output_tokens": 4605,
+  "cache_read": 35128,
+  "cache_creation": 0
+ },
+ "usage_per_trial": {
+  "input_tokens": 14019.3,
+  "output_tokens": 1535.0,
+  "cache_read": 11709.3,
+  "cache_creation": 0.0
+ },
+ "judge": {
+  "scored": 3,
+  "pass": 3,
+  "errors": 0
+ }
+}

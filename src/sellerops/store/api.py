@@ -5,14 +5,18 @@ Run from the project directory:
     make store            # or: uvicorn sellerops.store.api:app --reload
 
 Then open http://127.0.0.1:8000 for the shop and http://127.0.0.1:8000/docs
-for the API. The frontend in ``web/`` is plain HTML/JS served by this app.
+for the API. The seller backend (analytics + caption approval, ``/api/seller``)
+is mounted from ``sellerops.seller.api``; its SQLite database is created and
+seeded from the demo data on first start (``SELLEROPS_SELLER_DB``). The frontend in ``web/`` is plain HTML/JS served by this app.
 Configuration comes from ``SELLEROPS_*`` environment variables
 (see ``sellerops.settings``).
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import threading
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -28,8 +32,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from ..logging_config import configure_logging
+from ..seller import SellerService
+from ..seller import api as seller_api
 from ..settings import get_settings
-from .catalog import ProductFilter, SortKey, load_catalog, summary
+from .catalog import Catalog, ProductFilter, SortKey, load_catalog, summary
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +50,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # Load (and validate) the catalog at startup so a bad path fails fast,
     # not on the first customer request.
     catalog = load_catalog()
-    logger.info("store started", extra={"products": len(catalog.products), "version": APP_VERSION})
+    # Opens (and on first start seeds) the seller database.
+    seller = seller_api.default_services().for_store(seller_api.current_store_id())
+    logger.info("store started", extra={"products": len(catalog.products), "version": APP_VERSION,
+                                        "seller_db": str(seller.db_path),
+                                        "store_id": seller.store_id})
     yield
 
 
@@ -52,6 +62,13 @@ settings = get_settings()
 configure_logging()
 
 app = FastAPI(title="Kala Studio API", version=APP_VERSION, lifespan=lifespan)
+seller_api.install(app)
+try:  # the approval workflow needs the agent runtime ([agent] extra); the store image has only [store]
+    from ..workflows.approval import api as approval_api
+except ImportError as error:
+    logger.info("caption approval workflow not mounted", extra={"missing": error.name})
+else:
+    approval_api.install(app)
 
 if settings.cors_origins:
     app.add_middleware(
@@ -104,6 +121,27 @@ class RecommendRequest(BaseModel):
     limit: int = Field(5, ge=1, le=20)
 
 
+_shop: dict[str, Any] = {"key": None, "base": None, "catalog": None}
+_shop_lock = threading.Lock()
+
+
+def shop_catalog(seller: SellerService) -> Catalog:
+    """The catalog the shop shows: the snapshot with each product's current caption from the seller DB.
+
+    An approved caption (or a revert) changes the seller database; the shop
+    reads it from there, so it shows up on the next request. The search index
+    is rebuilt only when a caption changed.
+    """
+    base = load_catalog()
+    captions = seller.captions()
+    key = json.dumps(captions, sort_keys=True)
+    with _shop_lock:
+        if _shop["key"] != key or _shop["base"] is not base:
+            products = [{**p, **captions.get(p["product_id"], {})} for p in base.products]
+            _shop.update(key=key, base=base, catalog=Catalog({**base.meta, "products": products}))
+        return _shop["catalog"]
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     catalog = load_catalog()
@@ -111,13 +149,14 @@ def health() -> dict[str, Any]:
 
 
 @app.get("/api/categories")
-def categories() -> dict[str, Any]:
-    catalog = load_catalog()
+def categories(seller: seller_api.Service) -> dict[str, Any]:
+    catalog = shop_catalog(seller)
     return {"categories": catalog.categories(), "brands": catalog.brands()}
 
 
 @app.get("/api/products")
 def list_products(
+    seller: seller_api.Service,
     q: str = "",
     category: str | None = None,
     audience: str | None = Query(None, pattern="^(men|women|unisex)$"),
@@ -134,7 +173,7 @@ def list_products(
         category=category, audience=audience, brand=brand, min_price=min_price,
         max_price=max_price, min_rating=min_rating, in_stock=in_stock,
     )
-    rows = load_catalog().search(q, filters, sort)
+    rows = shop_catalog(seller).search(q, filters, sort)
     start = (page - 1) * page_size
     return {
         "total": len(rows),
@@ -145,21 +184,21 @@ def list_products(
 
 
 @app.get("/api/products/{product_id}")
-def get_product(product_id: str) -> dict[str, Any]:
-    product = load_catalog().get(product_id)
+def get_product(seller: seller_api.Service, product_id: str) -> dict[str, Any]:
+    product = shop_catalog(seller).get(product_id)
     if product is None:
         raise HTTPException(status_code=404, detail=f"Unknown product_id {product_id}")
     return product
 
 
 @app.post("/api/recommend")
-def recommend(body: RecommendRequest) -> dict[str, Any]:
+def recommend(seller: seller_api.Service, body: RecommendRequest) -> dict[str, Any]:
     filters = ProductFilter(
         category=body.category, audience=body.audience, brand=body.brand,
         min_price=body.min_price, max_price=body.max_price, min_rating=body.min_rating,
         in_stock=body.in_stock, exclude_ids=frozenset(body.exclude_ids),
     )
-    items = load_catalog().recommend(body.query, filters, body.limit, body.similar_to)
+    items = shop_catalog(seller).recommend(body.query, filters, body.limit, body.similar_to)
     return {"items": items}
 
 
@@ -169,5 +208,9 @@ if settings.web_dir.is_dir():
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
         return FileResponse(settings.web_dir / "index.html")
+
+    @app.get("/seller", include_in_schema=False)
+    def seller_page() -> FileResponse:
+        return FileResponse(settings.web_dir / "seller.html")
 else:
     logger.warning("web dir not found; serving API only", extra={"web_dir": str(settings.web_dir)})

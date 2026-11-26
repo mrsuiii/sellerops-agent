@@ -42,9 +42,14 @@ def sales_final(task: dict[str, Any]) -> AIMessage:
                                         "orders": e["orders"]}})
 
 
-def build(model, episode: SellerEpisode, *, max_steps: int = 8, terminal_tools=TERMINAL_TOOLS, checkpointer=None):
+def build(model, episode: SellerEpisode, *, max_steps: int = 8, terminal_tools=TERMINAL_TOOLS, checkpointer=None,
+          **options):
+    # prompt_caching=True: these tests check the Anthropic request shape with a scripted model
+    # (auto-detection would turn caching off for a non-ChatAnthropic model).
+    options.setdefault("prompt_caching", True)
     return build_agent_graph(model, make_seller_tools(episode), system_prompt=SELLER_SYSTEM_PROMPT,
-                             terminal_tools=terminal_tools, max_steps=max_steps, checkpointer=checkpointer)
+                             terminal_tools=terminal_tools, max_steps=max_steps, checkpointer=checkpointer,
+                             **options)
 
 
 def run(model, task: dict[str, Any], *, max_steps: int = 8, recursion_limit: int = 50,

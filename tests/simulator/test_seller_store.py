@@ -97,3 +97,32 @@ def test_episode_records_errors_as_observations() -> None:
     assert episode.snapshot()["history"][0]["tool"] == "get_product"
     with pytest.raises(KeyError):
         episode.call("delete_everything", {})
+
+
+def test_compare_to_previous_adds_changes_computed_from_both_windows() -> None:
+    store = load_store()
+    summary = store.sales_summary("last_7_days", compare_to_previous=True)
+    before = store.sales_summary("previous_7_days")
+    assert summary["compared_with"]["name"] == "previous_7_days"
+    assert summary["previous_revenue_idr"] == before["revenue_idr"]
+    expected = round((summary["revenue_idr"] - before["revenue_idr"]) / before["revenue_idr"] * 100, 1)
+    assert summary["revenue_change_pct"] == expected
+    assert summary["trend"] == ("down" if expected < 0 else "up")
+
+    rows = store.product_performance("last_30_days", category="shoes", audience="women", limit=54,
+                                     compare_to_previous=True)["products"]
+    previous = store.units_by_product("previous_30_days")
+    for row in rows:
+        assert row["previous_units"] == previous[row["product_id"]]
+        assert row["units_change"] == row["units"] - row["previous_units"]
+    stockout = next(r for r in rows if r["product_id"] == "FS186")  # planted stockout scenario
+    assert stockout["trend"] == "down" and stockout["stock"] == 0
+
+
+def test_compare_to_previous_rejects_windows_without_a_previous_one() -> None:
+    import pytest
+
+    from sellerops.simulator import ToolError
+
+    with pytest.raises(ToolError, match="compare_to_previous"):
+        load_store().sales_summary("last_90_days", compare_to_previous=True)
