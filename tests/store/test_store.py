@@ -68,6 +68,7 @@ def test_api_endpoints():
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
 
+    from sellerops import settings as settings_module
     from sellerops.store.api import app
 
     client = TestClient(app)
@@ -79,6 +80,8 @@ def test_api_endpoints():
     assert client.get("/api/products/NOPE").status_code == 404
     rec = client.post("/api/recommend", json={"query": "gold watch", "audience": "women", "limit": 2}).json()
     assert len(rec["items"]) <= 2
+    if not (settings_module.get_settings().web_dir / "index.html").is_file():
+        pytest.skip("web build missing: run make web-build")
     assert client.get("/").status_code == 200
 
 

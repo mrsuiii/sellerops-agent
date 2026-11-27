@@ -99,7 +99,7 @@ class Settings:
         return cls(
             project_root=root,
             data_dir=data_dir,
-            web_dir=_env_path("SELLEROPS_WEB_DIR", root / "web", root),
+            web_dir=_env_path("SELLEROPS_WEB_DIR", root / "web" / "dist", root),
             results_dir=_env_path("SELLEROPS_RESULTS_DIR", root / "results", root),
             catalog_path=_env_path("SELLEROPS_CATALOG_PATH", data_dir / "store" / "fashion_catalog.json", root),
             seller_db_path=_env_path("SELLEROPS_SELLER_DB", root / "var" / "seller.sqlite", root),

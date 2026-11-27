@@ -1,16 +1,18 @@
-.PHONY: install lint fix test test-live try-approval studio studio-fake store store-fake docker docker-demo deploy sim eval-smoke eval docker-eval-build docker-eval-smoke docker-eval
+.PHONY: install lint fix test test-live try-approval studio studio-fake store store-fake web-install web-dev web-build web-lint web-test web-e2e docker docker-demo deploy sim eval-smoke eval docker-eval-build docker-eval-smoke docker-eval
 
 install:        ## Core + store + eval + dev tools (no torch)
 	pip install -e ".[dev]"
 
-lint:
+lint: web-install  ## Ruff, then the web app: TypeScript typecheck and ESLint
 	ruff check src scripts tests
+	cd web && npm run typecheck && npm run lint
 
 fix:
 	ruff check --fix src scripts tests
 
-test:
+test: web-build  ## Web build, Python tests (incl. the served app), web unit tests, end-to-end
 	pytest -q
+	cd web && npm test && npm run test:e2e
 
 test-live:      ## Integration tests against the real LLM (costs money; needs .env)
 	SELLEROPS_LIVE_TESTS=1 pytest -q -m live -s tests/integration
@@ -33,11 +35,29 @@ studio:         ## LangGraph Studio for the workflows (real LLM; needs: uv sync 
 studio-fake:    ## Same, with a free fake model writing the revisions
 	SELLEROPS_STUDIO_FAKE=1 langgraph dev --allow-blocking
 
-store:          ## Run the Kala Studio demo store on :8000 (seller page: /seller; revisions use the real LLM)
+store:          ## Kala Studio on :8000 (API + the built web app if web/dist exists; revisions use the real LLM)
 	uvicorn sellerops.store.api:app --reload
 
 store-fake:     ## Same, with a free fake model drafting the caption revisions
 	SELLEROPS_APPROVAL_FAKE=1 uvicorn sellerops.store.api:app --reload
+
+web-install:    ## Install the web app dependencies (web/node_modules)
+	cd web && npm install --no-audit --no-fund
+
+web-dev:        ## Web app with hot reload on :5173 (API proxied to :8000; run make store-fake too)
+	cd web && npm run dev
+
+web-build: web-install  ## Production build of the web app into web/dist (served by make store)
+	cd web && npm run build
+
+web-test: web-install  ## Web unit tests (vitest)
+	cd web && npm test
+
+web-e2e: web-build  ## End-to-end tests in Chrome against the real store (fresh database)
+	cd web && npm run test:e2e
+
+web-lint: web-install  ## Typecheck and ESLint for the web app
+	cd web && npm run typecheck && npm run lint
 
 docker:         ## Production store image on :8000
 	docker build --target store -t sellerops-store . && docker run --rm -p 8000:8000 sellerops-store

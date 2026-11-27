@@ -7,6 +7,12 @@ results/**/checkpoints/
 *.pt
 *.ckpt
 
+# Web app
+node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+
 # Python
 __pycache__/
 *.py[cod]

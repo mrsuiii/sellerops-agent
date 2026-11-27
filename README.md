@@ -57,7 +57,7 @@ src/sellerops/
 ├── harness/          # LangGraph agent graph (model ⇄ tools, Claude API); never imports evaluation/simulator
 ├── evaluation/       # seller tools, terminal tools, tasks, user simulators, turn loop, verifier, metrics
 └── store/            # Kala Studio FastAPI backend + BM25 recommender
-web/          # plain HTML/CSS/JS storefront served by the store API
+web/          # Kala Studio React app (Vite, TypeScript, Tailwind): storefront + seller page, built to web/dist and served by the store API
 data/         # store catalog snapshot, seller_sim/ (dataset + eval tasks + manifests)
 scripts/      # seller simulator generation, catalog import
 tests/
@@ -89,8 +89,9 @@ The existing Conda environment `llm-post-training` still works; run
 ## Common commands
 
 ```bash
-make test     # pytest
-make lint     # ruff
+make test     # web build, pytest, vitest, Playwright e2e
+make lint     # ruff + TypeScript typecheck + ESLint
+make web-dev  # React app dev server on :5173 (API proxied to :8000)
 make store    # Kala Studio on http://127.0.0.1:8000 (API docs at /docs, seller page at /seller)
 make store-fake    # same, a free fake model drafts the caption revisions
 make docker   # build and run the store container

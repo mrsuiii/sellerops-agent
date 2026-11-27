@@ -179,3 +179,16 @@ giliran kedua dst. no-op di LangGraph. Runner memakai `eval_run_id`.
   Dua dev task lolos di Haiku dan Opus 5.5. Opus 5.5 menolak forced
   `tool_choice`; graph tidak memakainya dan menangani balasan tanpa tool call.
 - Jangan baca / cetak / commit `.env`.
+
+## Sesi 5 (27 Nov): web app React
+
+- `web/` diganti dari HTML/JS statis ke React 19 + TypeScript + Vite + Tailwind v4
+  (React Router, TanStack Query). Halaman: toko (`/`, `/p/<id>`) dan seller
+  (`/seller`, `/seller/<id>`). Lihat `web/README.md`.
+- Backend melayani `web/dist` lewat `store/frontend.py` (fallback SPA, aset ber-hash
+  di-cache setahun). Dockerfile punya stage `web-build` (Node 22).
+- Tes: pytest (termasuk `tests/store/test_frontend.py`), vitest (`web/src/lib/*.test.ts`),
+  Playwright e2e (`web/e2e/`, 11 tes, Chrome terpasang, server dan database sementara).
+  `make test` menjalankan semuanya; `make lint` menjalankan ruff, tsc, dan ESLint.
+- Belum: keputusan bahasa caption (Inggris vs Indonesia), login (header
+  `X-Seller-User` masih dipercaya tanpa autentikasi), commit perubahan sesi ini.
