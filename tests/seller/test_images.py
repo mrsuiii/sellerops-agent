@@ -141,17 +141,23 @@ def test_service_lists_catalog_images_and_records_inputs(service, store) -> None
 
 
 def test_old_database_gets_the_inputs_column(tmp_path) -> None:
+    import re
     import sqlite3
 
     from sellerops.seller.db import SCHEMA, init_db
 
-    old_schema = SCHEMA.replace("reverted_by          TEXT,\n    inputs", "reverted_by          TEXT\n    -- inputs")
+    # a database from before C3b: caption_proposals without inputs / request_id
+    old_schema = re.sub(r"reverted_by +TEXT,\n.*?\n\);", "reverted_by TEXT\n);", SCHEMA, count=1, flags=re.S)
     assert old_schema != SCHEMA
     conn = sqlite3.connect(tmp_path / "old.sqlite")
-    conn.executescript(old_schema)               # a database from before C3b
-    assert "inputs" not in {row[1] for row in conn.execute("PRAGMA table_info(caption_proposals)")}
+    conn.executescript(old_schema)
+
+    def columns() -> set[str]:
+        return {row[1] for row in conn.execute("PRAGMA table_info(caption_proposals)")}
+
+    assert not {"inputs", "request_id"} & columns()
     init_db(conn)
-    assert "inputs" in {row[1] for row in conn.execute("PRAGMA table_info(caption_proposals)")}
+    assert {"inputs", "request_id"} <= columns()
     init_db(conn)   # idempotent
 
 

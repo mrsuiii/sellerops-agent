@@ -26,6 +26,9 @@
 .status.applied { color: var(--ok); }
 .status.rejected, .status.stale { color: var(--sale); }
 .status.cancelled, .status.reverted { color: var(--muted); }
+.status.open { color: var(--warn); }
+.status.proposed { color: var(--ok); }
+.q-item.request { border-style: dashed; }
 
 .detail { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; min-height: 320px; }
 .detail-head { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; align-items: center; }
@@ -85,6 +88,21 @@ details.history summary { cursor: pointer; font-size: 14px; }
 .new-form { display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto; }
 .new-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
 .new-form input, .new-form select, .new-form textarea { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 14px; }
+.facts dt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); }
+.facts dd { margin: 0; }
+.question-form { margin: 16px 0; padding: 16px; border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); border-radius: 8px; background: var(--bg); display: flex; flex-direction: column; gap: 12px; }
+.question-form .q-title { margin: 0; font-weight: 600; }
+.question-form .actions { margin-top: 0; padding-top: 0; border-top: 0; }
+.question { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.question textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); resize: vertical; }
+.field-picks { border: 0; padding: 0; margin: 0; display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; }
+.field-picks legend { font-size: 13px; color: var(--muted); margin-bottom: 6px; padding: 0; }
+.field-picks label { flex-direction: row; align-items: center; gap: 6px; color: var(--ink); }
+details.manual { margin: 0 16px 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+details.manual summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+details.manual .new-form { padding: 12px 0 0; }
 
 @media (max-width: 860px) {
   .seller-layout { grid-template-columns: 1fr; }

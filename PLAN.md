@@ -538,6 +538,49 @@ DoD: revisi caption memakai foto produk lewat backend (tanpa URL ke model),
 hash gambar tercatat di proposal, dan alur tetap jalan untuk model tanpa
 vision.
 
+**Bagian 2: agent boleh bertanya ke seller** (keputusan Nigka, 27 Nov).
+Foto menjawab yang terlihat (warna, motif, potongan); yang tidak terlihat dan
+tidak ada di data (bahan, ukuran, perawatan) ditanyakan ke seller, bukan
+dikarang. Tetap workflow (flowchart bisa digambar dulu), bukan agent loop.
+
+Keputusan:
+1. **Dari awal**: agent boleh bertanya sebelum caption pertama, bukan hanya
+   saat revisi. Caption pertama ditulis graph lewat *caption request*
+   (`CR-0001`: produk, field, instruksi seller).
+2. **Apa adanya**: kalau seller tidak tahu (jawaban kosong → `None`),
+   caption tetap ditulis dari yang ada, dan `reason` menegaskan bahwa data
+   tambahan dibutuhkan. Tidak ada putaran tanya ulang tanpa batas.
+3. **Memory**: jawaban disimpan sebagai fakta produk (`product_facts`,
+   append-only, jawaban terbaru per key menang), jadi lain kali tidak perlu
+   bertanya lagi. Ini bahan pertama A5 (semantic memory per produk).
+4. **Audit**: fakta yang dipakai dicatat di `inputs.seller_facts` proposal.
+
+Langkah:
+- [x] Backend (assistant): tabel `caption_requests` + `product_facts`,
+  `service.request_caption / get_request / list_requests / cancel_request`,
+  `remember_facts / product_facts`, `propose_caption(request_id=...)`
+  (request → `proposed` dalam transaksi yang sama, hanya field yang diminta);
+  `GET/POST /api/seller/products/{id}/facts`, `GET /caption-requests`,
+  `POST /caption-requests/{id}/cancel`.
+- [x] Kontrak interrupt (`workflows/approval/questions.py`): `SellerQuestion`,
+  `question_request(...)` (`kind="question"`), `AnswerIn` / `Answer`
+  (`{"answers": {key: str | None}, "user"}`), maks 3 pertanyaan.
+- [x] Runner + API (assistant): thread `caption-request-CR-…` (proposal dengan
+  `request_id` ikut thread itu), view `waiting_for` = `decision` | `answer`,
+  `answer` menyimpan fakta dulu lalu resume, `POST /caption-requests`,
+  `.../approval/answer` untuk request dan proposal. Halaman `/seller`:
+  form "Minta agent menulis", form pertanyaan, panel fakta.
+  Test dengan graph stub (`tests/workflows/test_caption_questions.py`).
+- [ ] Graph (Nigka): input `{"request_id"}` di `load`; node draft pertama;
+  output model `CaptionDraft | AskSeller`; node `ask_seller` dengan
+  `interrupt(question_request(...))`; fakta seller (+ yang `None`) masuk
+  prompt; `submit` meneruskan `request_id` dan `inputs.seller_facts`. Kapan
+  boleh bertanya (hanya key yang belum ada di `product_facts`?), dan batas
+  per thread.
+- [ ] Prompt (Nigka): tiga sumber, yaitu data produk, foto, dan fakta seller;
+  `None` → sebut bahwa data tambahan dibutuhkan. Hapus contoh "material,
+  size" di aturan sekarang (data produk tidak punya field itu).
+
 ### Session C4 — KPI dan laporan mingguan (workflow)
 
 Status: [ ]

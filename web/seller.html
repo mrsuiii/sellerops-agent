@@ -32,7 +32,7 @@
             <button class="chip" data-status="pending" aria-pressed="true">Menunggu</button>
             <button class="chip" data-status="">Semua</button>
           </nav>
-          <button class="link-btn" id="new-open" type="button">+ Usulan baru</button>
+          <button class="link-btn" id="new-open" type="button">+ Caption baru</button>
         </div>
         <div id="queue" class="queue-list" aria-live="polite"></div>
       </aside>
@@ -44,11 +44,25 @@
   </main>
 
   <div class="drawer-backdrop" id="new-backdrop" hidden></div>
-  <aside class="drawer" id="new-drawer" aria-label="Usulan baru" hidden>
+  <aside class="drawer" id="new-drawer" aria-label="Caption baru" hidden>
     <div class="drawer-head">
-      <h2>Usulan baru (demo)</h2>
+      <h2>Caption baru</h2>
       <button class="link-btn" id="new-close" type="button">Tutup</button>
     </div>
+    <form id="request-form" class="new-form">
+      <p class="hint">Agent menulis caption dari awal. Kalau ada fakta yang tidak ada di data produk
+        (bahan, ukuran, perawatan), agent bertanya dulu kepadamu.</p>
+      <label>Produk <select id="req-product" required></select></label>
+      <fieldset class="field-picks"><legend>Bagian yang ditulis</legend>
+        <label><input type="checkbox" name="req-field" value="name"> Nama</label>
+        <label><input type="checkbox" name="req-field" value="description" checked> Deskripsi</label>
+        <label><input type="checkbox" name="req-field" value="tags"> Tag</label>
+      </fieldset>
+      <label>Permintaan <textarea id="req-instruction" rows="3" maxlength="1000" placeholder="mis. fokus ke bahan dan cocok untuk kerja"></textarea></label>
+      <button class="primary" type="submit">Minta agent menulis</button>
+    </form>
+    <details class="manual">
+      <summary>Atau tulis usulan sendiri (demo)</summary>
     <form id="new-form" class="new-form">
       <p class="hint">Biasanya chat agent yang membuat usulan. Form ini untuk mencoba alurnya.</p>
       <label>Produk <select id="new-product" required></select></label>
@@ -58,6 +72,7 @@
       <label>Alasan <input id="new-reason" required value="lebih menarik"></label>
       <button class="primary" type="submit">Kirim usulan</button>
     </form>
+    </details>
   </aside>
 
   <div class="toast" id="toast" hidden></div>

@@ -13,8 +13,16 @@
     POST /api/seller/caption-proposals/{id}/reject
     POST /api/seller/caption-proposals/{id}/cancel
     POST /api/seller/caption-proposals/{id}/revert
+    GET  /api/seller/caption-requests         ?status&product_id&limit
+    GET  /api/seller/caption-requests/{id}
+    POST /api/seller/caption-requests/{id}/cancel
+    GET  /api/seller/products/{id}/facts      what the seller told the agent (memory)
+    POST /api/seller/products/{id}/facts      {"facts": {"material": "katun", "fit": ""}} ("" = unknown)
     GET  /api/seller/audit-log                ?product_id&proposal_id&limit
     GET  /api/seller/images/{sha256}          an image the model saw (proposal ``inputs.images``)
+
+Creating a caption request (``POST /caption-requests``) and answering the
+agent's questions run the graph, so they live with the approval workflow.
 
 The approval workflow adds ``/caption-proposals/{id}/approval`` routes when
 the agent runtime is installed (``sellerops.workflows.approval.api``); the
@@ -49,15 +57,17 @@ from ..settings import get_settings
 from .analytics import SellerError
 from .images import ImageStore, LocalImageStore, is_sha256
 from .registry import SellerServices, SingleStoreServices
-from .service import DEFAULT_STORE_ID, STATUSES, SellerService
+from .service import DEFAULT_STORE_ID, REQUEST_STATUSES, STATUSES, SellerService
 
 Period = Literal["last_7_days", "previous_7_days", "last_30_days", "previous_30_days", "last_90_days"]
 Status = Literal[STATUSES]  # type: ignore[valid-type]
+RequestStatus = Literal[REQUEST_STATUSES]  # type: ignore[valid-type]
 
 ERROR_STATUS = {
     "store_not_found": 404,
     "product_not_found": 404,
     "proposal_not_found": 404,
+    "request_not_found": 404,
     "image_not_found": 404,
     "invalid_transition": 409,
     "stale_proposal": 409,
@@ -69,6 +79,8 @@ ERROR_STATUS = {
     "approval_closed": 409,
     "stale_decision": 409,
     "approval_not_failed": 409,
+    "not_waiting_for_answer": 409,
+    "not_waiting_for_decision": 409,
 }  # every other code is a bad request (422)
 
 router = APIRouter(prefix="/api/seller", tags=["seller"])
@@ -124,6 +136,10 @@ class ProposalIn(_Body):
 
 class DecisionIn(_Body):
     note: str | None = Field(None, max_length=500)
+
+
+class FactsIn(_Body):
+    facts: dict[str, str | None] = Field(description='Fact key → value; "" or null records "unknown".')
 
 
 class RejectIn(_Body):
@@ -210,6 +226,32 @@ def cancel(service: Service, who: Actor, proposal_id: str, body: DecisionIn | No
 @router.post("/caption-proposals/{proposal_id}/revert")
 def revert(service: Service, who: Actor, proposal_id: str, body: DecisionIn | None = None) -> dict[str, Any]:
     return service.revert(proposal_id, actor=who, note=body.note if body else None)
+
+
+@router.get("/caption-requests")
+def list_requests(service: Service, status: RequestStatus | None = None, product_id: str | None = None,
+                  limit: int = Query(50, ge=1, le=200)) -> dict[str, Any]:
+    return {"requests": service.list_requests(status=status, product_id=product_id, limit=limit)}
+
+
+@router.get("/caption-requests/{request_id}")
+def get_request(service: Service, request_id: str) -> dict[str, Any]:
+    return service.get_request(request_id)
+
+
+@router.post("/caption-requests/{request_id}/cancel")
+def cancel_request(service: Service, who: Actor, request_id: str) -> dict[str, Any]:
+    return service.cancel_request(request_id, actor=who)
+
+
+@router.get("/products/{product_id}/facts")
+def product_facts(service: Service, product_id: str) -> dict[str, Any]:
+    return {"product_id": product_id, "facts": service.product_facts(product_id)}
+
+
+@router.post("/products/{product_id}/facts")
+def remember_facts(service: Service, who: Actor, product_id: str, body: FactsIn) -> dict[str, Any]:
+    return {"product_id": product_id, "facts": service.remember_facts(product_id, body.facts, actor=who)}
 
 
 @router.get("/audit-log")

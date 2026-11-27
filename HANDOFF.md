@@ -61,9 +61,14 @@ Branch `feat/c2-c3-backend` (dari `feat/seller-agents`; belum di-push).
   caption berubah). `make store-fake` = tanpa biaya LLM.
 - C3b bagian assistant (27 Nov, branch `feat/c3b-images`): pipeline gambar
   `seller/images.py`, `supports_vision`, `inputs` di proposal, gambar yang
-  dilihat model di `/seller`. Sisa (Nigka): desain gambar mana/kapan, prompt
-  "terlihat vs fakta data", perubahan `draft_revision` (lihat `PLAN.md` C3b).
-- 275 test lolos (+4 live di-skip), ruff bersih.
+  dilihat model di `/seller`. Bagian 2 (agent bertanya ke seller): caption
+  request `CR-…`, memori `product_facts`, kontrak `workflows/approval/questions.py`,
+  runner/API `waiting_for` + `.../approval/answer`, UI pertanyaan di `/seller`.
+  Sisa (Nigka): graph (input `request_id`, draft pertama, `AskSeller`,
+  `ask_seller` interrupt, gambar di draft) dan prompt tiga sumber. Sampai
+  graph mendukung `request_id`, `POST /caption-requests` berakhir
+  `state="error"` di `load` (lihat `PLAN.md` C3b bagian 2).
+- 285 test lolos (+4 live di-skip), ruff bersih.
 
 Berikutnya (27 Nov; PR #7 sudah di-merge ke `main`): target dekat sampai
 A5. (1) coba reject → revisi dengan model asli (`make test-live` /

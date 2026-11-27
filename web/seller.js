@@ -6,7 +6,8 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const FIELDS = ["name", "description", "tags"];
 const FIELD_LABEL = { name: "Nama", description: "Deskripsi", tags: "Tag" };
-const STATUS_LABEL = { pending: "menunggu", applied: "diterapkan", rejected: "ditolak", cancelled: "dibatalkan", stale: "basi", reverted: "dikembalikan" };
+const STATUS_LABEL = { pending: "menunggu", applied: "diterapkan", rejected: "ditolak", cancelled: "dibatalkan", stale: "basi", reverted: "dikembalikan",
+  open: "diproses agent", proposed: "sudah diusulkan" };
 const STOP_REASON = {
   applied: ["ok", "Disetujui. Caption baru sudah tampil di toko."],
   stale: ["bad", "Tidak diterapkan: caption produk sudah berubah lebih dulu, jadi usulan ini basi."],
@@ -41,6 +42,8 @@ async function api(path, { method = "GET", body } = {}) {
   return data;
 }
 const proposalUrl = (pid, rest = "") => `/api/seller/caption-proposals/${encodeURIComponent(pid)}${rest}`;
+const requestUrl = (rid, rest = "") => `/api/seller/caption-requests/${encodeURIComponent(rid)}${rest}`;
+const threadUrl = (id, rest = "") => id.startsWith("CR-") ? requestUrl(id, rest) : proposalUrl(id, rest);
 
 // ---------- seller name ----------
 function currentUser() {
@@ -98,11 +101,28 @@ function changeBlock(field, change, allowed) {
 async function renderQueue() {
   const params = new URLSearchParams({ limit: "100" });
   if (state.status) params.set("status", state.status);
-  let proposals;
-  try { ({ proposals } = await api(`/api/seller/caption-proposals?${params}`)); }
-  catch (error) { $("#queue").innerHTML = `<p class="empty">Gagal memuat: ${esc(error.message)}</p>`; return; }
+  const requestParams = new URLSearchParams({ limit: "50" });
+  if (state.status) requestParams.set("status", "open");   // "Menunggu": requests the agent is still on
+  let proposals, requests;
+  try {
+    [{ proposals }, { requests }] = await Promise.all([
+      api(`/api/seller/caption-proposals?${params}`), api(`/api/seller/caption-requests?${requestParams}`)]);
+  } catch (error) { $("#queue").innerHTML = `<p class="empty">Gagal memuat: ${esc(error.message)}</p>`; return; }
   const selected = selectedId();
-  $("#queue").innerHTML = proposals.length ? proposals.map((p) => {
+  const requestItems = requests.filter((r) => r.status !== "proposed").map((r) => {
+    const product = state.products[r.product_id] || {};
+    return `
+      <a class="q-item request" href="#/${esc(r.request_id)}" ${r.request_id === selected ? 'aria-current="true"' : ""}>
+        <img src="${esc(product.thumbnail || "")}" alt="">
+        <div>
+          <div class="title">${esc(product.name || r.product_id)}</div>
+          <div class="sub"><span class="status ${esc(r.status)}">${STATUS_LABEL[r.status] || esc(r.status)}</span>
+            <span class="mono">${esc(r.request_id)}</span>
+            <span>· caption baru: ${r.fields.map((f) => FIELD_LABEL[f] || f).join(", ")}</span></div>
+        </div>
+      </a>`;
+  });
+  $("#queue").innerHTML = proposals.length || requestItems.length ? requestItems.join("") + proposals.map((p) => {
     const product = state.products[p.product_id] || {};
     return `
       <a class="q-item" href="#/${esc(p.proposal_id)}" ${p.proposal_id === selected ? 'aria-current="true"' : ""}>
@@ -119,31 +139,37 @@ async function renderQueue() {
 }
 
 // ---------- detail ----------
-const selectedId = () => decodeURIComponent((location.hash.match(/^#\/(CP-\d+)$/) || [])[1] || "");
+const selectedId = () => decodeURIComponent((location.hash.match(/^#\/(C[PR]-\d+)$/) || [])[1] || "");
 
 async function renderDetail() {
   const pid = selectedId();
   const root = $("#detail");
   if (!pid) { root.innerHTML = `<p class="empty">Pilih usulan di kiri.</p>`; return; }
   root.innerHTML = `<p class="working"><span class="spinner"></span> Memuat ${esc(pid)}…</p>`;
+  if (pid.startsWith("CR-")) return renderRequest(pid);
   let proposal, approval = null;
   try {
     proposal = await api(proposalUrl(pid));
     try { approval = await api(proposalUrl(pid, "/approval")); }
     catch (error) { if (error.code !== "approval_not_found") throw error; }
   } catch (error) { root.innerHTML = `<p class="notice bad">Gagal memuat ${esc(pid)}: ${esc(error.message)}</p>`; return; }
-  const log = await api(`/api/seller/audit-log?product_id=${encodeURIComponent(proposal.product_id)}&limit=30`)
-    .then((r) => r.entries).catch(() => []);
-  root.innerHTML = detailHtml(proposal, approval, log);
+  const [log, facts] = await Promise.all([auditLog(proposal.product_id), productFacts(proposal.product_id)]);
+  root.innerHTML = detailHtml(proposal, approval, log, facts);
   bindDetail(proposal, approval);
 }
 
-function detailHtml(p, approval, log) {
+const auditLog = (productId) => api(`/api/seller/audit-log?product_id=${encodeURIComponent(productId)}&limit=30`)
+  .then((r) => r.entries).catch(() => []);
+const productFacts = (productId) => api(`/api/seller/products/${encodeURIComponent(productId)}/facts`)
+  .then((r) => r.facts).catch(() => ({}));
+
+function detailHtml(p, approval, log, facts) {
   const product = state.products[p.product_id] || {};
-  const waitingHere = approval?.state === "waiting" && approval.request.proposal.proposal_id === p.proposal_id;
+  const waitingHere = approval?.waiting_for === "decision" && approval.request.proposal.proposal_id === p.proposal_id;
+  const askingHere = approval?.waiting_for === "answer" && approval.proposal_id === p.proposal_id;
   const fields = waitingHere ? approval.request.fields : Object.keys(p.changes);
   const notices = [];
-  if (approval?.state === "waiting" && !waitingHere) {
+  if (approval?.waiting_for === "decision" && !waitingHere) {
     const next = approval.request.proposal.proposal_id;
     notices.push(`<p class="notice">Versi ini sudah diputuskan. Yang menunggu sekarang: <a href="#/${esc(next)}">${esc(next)} →</a></p>`);
   }
@@ -176,6 +202,8 @@ function detailHtml(p, approval, log) {
     ${notices.join("")}
     <div class="reason"><b>Alasan ${p.created_by?.startsWith("agent") ? "agent" : "pengusul"}</b>${esc(p.reason)}</div>
     ${seenImages(p.inputs?.images)}
+    ${usedFacts(p.inputs?.seller_facts)}
+    ${askingHere ? questionForm(approval.request) : ""}
     ${Object.entries(p.changes).map(([field, change]) => changeBlock(field, change, fields.includes(field))).join("")}
     ${waitingHere ? `
       <div class="actions" id="actions">
@@ -193,6 +221,7 @@ function detailHtml(p, approval, log) {
       </form>` : ""}
     ${canRevert ? `<div class="actions"><button class="ghost danger" id="revert">Kembalikan caption sebelumnya</button>
       <span class="hint">Hanya bisa selama toko masih menampilkan caption dari usulan ini.</span></div>` : ""}
+    ${factsPanel(facts)}
     <details class="history">
       <summary>Riwayat produk (audit log)</summary>
       <table class="log"><thead><tr><th>Waktu</th><th>Oleh</th><th>Aksi</th><th>Usulan</th></tr></thead><tbody>
@@ -210,8 +239,96 @@ function seenImages(images) {   // C3b: the exact images the model saw, served b
       <span class="mono">${esc(img.sha256.slice(0, 8))} · ${img.width}×${img.height}</span></a>`).join("")}</div></div>`;
 }
 
+function usedFacts(facts) {   // C3b: what the seller told the agent, as the draft used it
+  const entries = Object.entries(facts || {});
+  if (!entries.length) return "";
+  return `<div class="seen"><b>Fakta dari seller yang dipakai</b><dl class="facts">${entries.map(([k, v]) =>
+    `<dt>${esc(k)}</dt><dd>${v === null ? "<em>seller tidak tahu</em>" : esc(v)}</dd>`).join("")}</dl></div>`;
+}
+
+function factsPanel(facts) {   // memory: the latest answer per key
+  const entries = Object.entries(facts || {});
+  if (!entries.length) return "";
+  return `<details class="history"><summary>Yang sudah kamu ceritakan ke agent (${entries.length})</summary>
+    <table class="log"><thead><tr><th>Fakta</th><th>Jawaban</th><th>Oleh</th><th>Dari</th></tr></thead><tbody>
+    ${entries.map(([k, f]) => `<tr><td class="mono">${esc(k)}</td><td>${f.value === null ? "<em>tidak tahu</em>" : esc(f.value)}</td>
+      <td>${esc(who(f.by))} · ${esc(when(f.at))}</td><td class="mono">${f.source ? `<a href="#/${esc(f.source)}">${esc(f.source)}</a>` : "langsung"}</td></tr>`).join("")}
+    </tbody></table></details>`;
+}
+
+function questionForm(request) {   // the graph asks before writing (interrupt kind "question")
+  return `
+    <form class="question-form" id="question-form">
+      <p class="q-title">Agent butuh info dulu sebelum menulis caption</p>
+      ${request.error ? `<p class="notice bad">Jawaban ditolak: ${esc(typeof request.error === "string" ? request.error : "tidak valid")}</p>` : ""}
+      ${request.questions.map((q) => `
+        <label class="question">${esc(q.question)}
+          <textarea name="${esc(q.key)}" rows="2" maxlength="300" placeholder="kosongkan kalau tidak tahu"></textarea>
+          <span class="hint mono">${esc(q.key)}</span>
+        </label>`).join("")}
+      <p class="hint">Jawabanmu disimpan sebagai fakta produk, jadi agent tidak perlu bertanya lagi lain kali.
+        Yang dikosongkan dicatat sebagai "tidak tahu": caption akan menyebut bahwa data tambahan dibutuhkan.</p>
+      <div class="actions"><button class="primary" type="submit">Kirim jawaban</button></div>
+    </form>`;
+}
+
+function bindQuestions(id) {
+  const form = $("#question-form");
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const answers = Object.fromEntries([...form.querySelectorAll("textarea")].map((t) => [t.name, t.value.trim() || null]));
+    run(id, () => api(threadUrl(id, "/approval/answer"), { method: "POST", body: { answers } }), "Agent sedang menulis…");
+  });
+}
+
+// ---------- caption request (C3b: the agent writes from scratch) ----------
+async function renderRequest(rid) {
+  const root = $("#detail");
+  let request, approval = null;
+  try {
+    request = await api(requestUrl(rid));
+    try { approval = await api(requestUrl(rid, "/approval")); }
+    catch (error) { if (error.code !== "approval_not_found") throw error; }
+  } catch (error) { root.innerHTML = `<p class="notice bad">Gagal memuat ${esc(rid)}: ${esc(error.message)}</p>`; return; }
+  const [log, facts] = await Promise.all([auditLog(request.product_id), productFacts(request.product_id)]);
+  const product = state.products[request.product_id] || {};
+  const notices = [];
+  if (approval?.state === "error") notices.push(`<p class="notice bad">Langkah agent gagal (mis. LLM tidak tersedia). <button class="link-btn" id="retry">Coba lagi</button></p>`);
+  if (approval?.stop_reason === "cancelled" || request.status === "cancelled") notices.push(`<p class="notice">Permintaan dibatalkan.</p>`);
+  const next = approval?.waiting_for === "decision" ? approval.request.proposal.proposal_id : request.proposal_id;
+  if (next) notices.push(`<p class="notice ok">Agent sudah menulis usulan: <a href="#/${esc(next)}">${esc(next)} →</a></p>`);
+  root.innerHTML = `
+    <div class="detail-head">
+      <img src="${esc(product.thumbnail || "")}" alt="">
+      <div>
+        <h2>${esc(product.name || request.product_id)}</h2>
+        <div class="sub">
+          <span class="status ${esc(request.status)}">${STATUS_LABEL[request.status] || esc(request.status)}</span>
+          <span class="mono">${esc(request.request_id)}</span>
+          <span>· caption baru: ${request.fields.map((f) => FIELD_LABEL[f] || f).join(", ")}</span>
+          <span>· oleh ${esc(who(request.created_by))} · ${esc(when(request.created_at))}</span>
+        </div>
+      </div>
+    </div>
+    ${notices.join("")}
+    <div class="reason"><b>Permintaan</b>${esc(request.instruction || "(tanpa instruksi khusus)")}</div>
+    ${approval?.waiting_for === "answer" ? questionForm(approval.request) : ""}
+    ${request.status === "open" ? `<div class="actions"><button class="ghost danger" id="cancel-request">Batalkan permintaan</button></div>` : ""}
+    ${factsPanel(facts)}
+    <details class="history"><summary>Riwayat produk (audit log)</summary>
+      <table class="log"><thead><tr><th>Waktu</th><th>Oleh</th><th>Aksi</th><th>Usulan</th></tr></thead><tbody>
+        ${log.map((e) => `<tr><td>${esc(when(e.at))}</td><td>${esc(who(e.actor))}</td><td>${esc(e.action)}</td>
+          <td class="mono">${e.proposal_id ? `<a href="#/${esc(e.proposal_id)}">${esc(e.proposal_id)}</a>` : esc(e.detail?.request_id || "")}</td></tr>`).join("")}
+      </tbody></table>
+    </details>`;
+  bindQuestions(rid);
+  $("#retry", root)?.addEventListener("click", () => run(rid, () => api(requestUrl(rid, "/approval/retry"), { method: "POST" }), "Agent sedang mencoba lagi…"));
+  $("#cancel-request", root)?.addEventListener("click", () => run(rid, () => api(requestUrl(rid, "/cancel"), { method: "POST" }), "Membatalkan…", "Permintaan dibatalkan."));
+}
+
 function bindDetail(p, approval) {
   const root = $("#detail");
+  bindQuestions(p.proposal_id);
   root.querySelectorAll("[data-decision]").forEach((button) =>
     button.addEventListener("click", () => decide(p.proposal_id, { decision: button.dataset.decision })));
   $("#reject-open", root)?.addEventListener("click", () => {
@@ -245,9 +362,12 @@ async function run(pid, call, label, doneText) {
   try {
     const result = await call();
     await loadProducts();
-    if (result?.state === "waiting" && result.proposal_id !== pid) {
-      toast(`Revisi ${result.proposal_id} siap diputuskan`);
-      location.hash = `#/${result.proposal_id}`;   // hashchange renders it
+    const next = result?.waiting_for === "decision" ? result.request.proposal.proposal_id : null;
+    if (next && next !== pid) {
+      toast(`${pid.startsWith("CR-") ? "Usulan" : "Revisi"} ${next} siap diputuskan`);
+      location.hash = `#/${next}`;   // hashchange renders it
+    } else if (result?.waiting_for === "answer" && result.request_id && pid !== result.request_id && !result.proposal_id) {
+      location.hash = `#/${result.request_id}`;
     } else {
       if (doneText) toast(doneText);
       await renderDetail();
@@ -266,6 +386,26 @@ function openNew(open) {
   $("#new-drawer").hidden = !open;
   $("#new-backdrop").hidden = !open;
 }
+async function submitRequest(event) {
+  event.preventDefault();
+  const fields = [...event.target.querySelectorAll('input[name="req-field"]:checked')].map((box) => box.value);
+  if (!fields.length) { toast("Pilih minimal satu bagian caption"); return; }
+  const body = { product_id: $("#req-product").value, fields, instruction: $("#req-instruction").value.trim() };
+  const button = event.target.querySelector("button[type=submit]");
+  button.disabled = true;
+  button.insertAdjacentHTML("afterend", `<span class="working"><span class="spinner"></span>Agent sedang membaca produk…</span>`);
+  try {
+    const view = await api("/api/seller/caption-requests", { method: "POST", body });
+    openNew(false);
+    event.target.reset();
+    const next = view.waiting_for === "decision" ? view.request.proposal.proposal_id : view.request_id;
+    toast(view.waiting_for === "answer" ? "Agent punya pertanyaan untukmu" : view.state === "error" ? "Langkah agent gagal, coba lagi" : `Usulan ${next} siap diputuskan`);
+    location.hash = `#/${next}`;
+    renderQueue();
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; event.target.querySelector(".working")?.remove(); }
+}
+
 async function submitNew(event) {
   event.preventDefault();
   const value = (id) => $(id).value.trim();
@@ -298,9 +438,11 @@ async function loadProducts() {   // names as the shop shows them now (approved 
   try {
     const { items } = await api("/api/products?page_size=60");
     for (const item of items) state.products[item.product_id] = item;
-    const chosen = $("#new-product").value;
-    $("#new-product").innerHTML = items.map((p) => `<option value="${esc(p.product_id)}">${esc(p.product_id)} · ${esc(p.name)}</option>`).join("");
-    if (chosen) $("#new-product").value = chosen;
+    for (const select of [$("#new-product"), $("#req-product")]) {
+      const chosen = select.value;
+      select.innerHTML = items.map((p) => `<option value="${esc(p.product_id)}">${esc(p.product_id)} · ${esc(p.name)}</option>`).join("");
+      if (chosen) select.value = chosen;
+    }
   } catch { /* the page still works without thumbnails */ }
 }
 
@@ -318,6 +460,7 @@ async function init() {
   $("#new-close").addEventListener("click", () => openNew(false));
   $("#new-backdrop").addEventListener("click", () => openNew(false));
   $("#new-form").addEventListener("submit", submitNew);
+  $("#request-form").addEventListener("submit", submitRequest);
   window.addEventListener("hashchange", () => { renderDetail(); renderQueue(); });
   await renderQueue();
   if (!selectedId()) {

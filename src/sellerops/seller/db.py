@@ -12,12 +12,15 @@ Tables::
     orders, reviews   imported facts (JSON rows), read-only in this demo
     caption_versions  every caption a product ever had; append-only
     caption_proposals one row per proposal and its decision (state machine in service.py)
+    caption_requests  "write a caption for this product": the agent drafts the first version
+    product_facts     what the seller told the agent about a product (memory); append-only
     audit_log         who did what, when; append-only
 
 Invariants the schema enforces itself (triggers), so a bug in the service
 cannot silently break them:
 
-- ``audit_log`` and ``caption_versions`` are append-only (no UPDATE/DELETE).
+- ``audit_log``, ``caption_versions`` and ``product_facts`` are append-only
+  (no UPDATE/DELETE): a corrected fact is a new row, the latest one counts.
 - A product's caption (name, description, tags) only changes together with
   ``current_version_id``, and always equals that version row: every caption
   the shop shows has a version (and so an author) behind it.
@@ -95,11 +98,37 @@ CREATE TABLE IF NOT EXISTS caption_proposals (
     applied_version_id   INTEGER REFERENCES caption_versions(version_id),
     reverted_at          TEXT,
     reverted_by          TEXT,
-    inputs               TEXT   -- JSON: what the author used, e.g. {"images": [ImageRef...]} (C3b)
+    inputs               TEXT,  -- JSON: what the author used, e.g. {"images": [ImageRef...]} (C3b)
+    request_id           INTEGER REFERENCES caption_requests(id)  -- first proposal of a caption request
 );
 CREATE INDEX IF NOT EXISTS proposals_product ON caption_proposals(product_id, status);
 CREATE UNIQUE INDEX IF NOT EXISTS proposals_one_revision ON caption_proposals(revision_of)
     WHERE revision_of IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS caption_requests (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id  TEXT NOT NULL REFERENCES products(product_id),
+    status      TEXT NOT NULL CHECK (status IN ('open', 'proposed', 'cancelled')),
+    fields      TEXT NOT NULL,          -- JSON list: the caption fields the agent may write
+    instruction TEXT NOT NULL,          -- what the seller asked for ("" = just write a good one)
+    proposal_id INTEGER REFERENCES caption_proposals(id),
+    created_at  TEXT NOT NULL,
+    created_by  TEXT NOT NULL,
+    closed_at   TEXT,
+    closed_by   TEXT
+);
+CREATE INDEX IF NOT EXISTS requests_status ON caption_requests(status, product_id);
+
+CREATE TABLE IF NOT EXISTS product_facts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id TEXT NOT NULL REFERENCES products(product_id),
+    key        TEXT NOT NULL,           -- e.g. "material", "fit"
+    value      TEXT,                    -- NULL: the seller said they do not know
+    source     TEXT,                    -- where it was asked: "CR-0001", "CP-0003" (or NULL: typed directly)
+    created_at TEXT NOT NULL,
+    created_by TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS facts_product ON product_facts(product_id, key, id);
 
 CREATE TABLE IF NOT EXISTS caption_versions (
     version_id      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,6 +163,10 @@ CREATE TRIGGER IF NOT EXISTS caption_versions_no_update BEFORE UPDATE ON caption
 BEGIN SELECT RAISE(ABORT, 'caption_versions is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS caption_versions_no_delete BEFORE DELETE ON caption_versions
 BEGIN SELECT RAISE(ABORT, 'caption_versions is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS product_facts_no_update BEFORE UPDATE ON product_facts
+BEGIN SELECT RAISE(ABORT, 'product_facts is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS product_facts_no_delete BEFORE DELETE ON product_facts
+BEGIN SELECT RAISE(ABORT, 'product_facts is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS products_caption_needs_version
 BEFORE UPDATE OF name, description, tags, current_version_id ON products
 WHEN ((NEW.name IS NOT OLD.name OR NEW.description IS NOT OLD.description OR NEW.tags IS NOT OLD.tags)
@@ -177,7 +210,10 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
 
 
 # Columns added after the first release, for databases created before them.
-_ADDED_COLUMNS = {("caption_proposals", "inputs"): "TEXT"}
+_ADDED_COLUMNS = {
+    ("caption_proposals", "inputs"): "TEXT",
+    ("caption_proposals", "request_id"): "INTEGER REFERENCES caption_requests(id)",
+}
 
 
 def init_db(conn: sqlite3.Connection) -> None:

@@ -33,6 +33,15 @@ writes an ``audit_log`` row)::
 - The agent's client has no approve/reject/revert: only a human (API) or the
   approval graph acting on a human's ``resume`` can apply a caption.
 
+Caption requests (C3b) start a caption from scratch: the seller asks, the
+approval graph drafts the first version (asking the seller first when it
+lacks facts) and proposes it with ``request_id``. A request is ``open`` until
+that proposal exists (``proposed``) or the seller cancels it.
+
+Product facts are the seller's answers to the agent's questions (memory):
+append-only, the latest row per key counts, ``value=None`` records "the
+seller does not know" so the caption can say more data is needed.
+
 Orders, reviews and stock are imported facts, read-only here; they are read
 once per service and cached. Products (whose captions change) are read on
 every call.
@@ -41,6 +50,7 @@ every call.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -58,6 +68,11 @@ MAX_REJECTIONS = 5
 # (see ``registry.py``), not the callers.
 DEFAULT_STORE_ID = "kala-studio"
 STATUSES = ("pending", "applied", "rejected", "stale", "reverted", "cancelled")
+REQUEST_STATUSES = ("open", "proposed", "cancelled")
+FACT_KEY = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
+MAX_FACT_LENGTH = 300
+MAX_INSTRUCTION_LENGTH = 1000
+CAPTION_FIELDS = ("name", "description", "tags")
 AGENT_PROPOSAL_KEYS = ("proposal_id", "product_id", "status", "changes", "reason", "base_caption_version")
 
 
@@ -70,6 +85,32 @@ def parse_proposal_id(proposal_id: str) -> int:
     if prefix != "CP" or not number.isdigit():
         raise SellerError("proposal_not_found", f"no proposal with id {proposal_id!r}")
     return int(number)
+
+
+def format_request_id(row_id: int) -> str:
+    return f"CR-{row_id:04d}"
+
+
+def parse_request_id(request_id: str) -> int:
+    prefix, _, number = request_id.partition("-")
+    if prefix != "CR" or not number.isdigit():
+        raise SellerError("request_not_found", f"no caption request with id {request_id!r}")
+    return int(number)
+
+
+def clean_facts(facts: dict[str, str | None]) -> dict[str, str | None]:
+    """Validate fact keys and values; an empty value means "does not know" (``None``)."""
+    if not facts:
+        raise SellerError("invalid_facts", "no facts given")
+    cleaned: dict[str, str | None] = {}
+    for key, value in facts.items():
+        if not FACT_KEY.match(key):
+            raise SellerError("invalid_facts", f"fact key {key!r} must be snake_case, at most 40 characters")
+        text = (value or "").strip()
+        if len(text) > MAX_FACT_LENGTH:
+            raise SellerError("invalid_facts", f"fact {key!r} is longer than {MAX_FACT_LENGTH} characters")
+        cleaned[key] = text or None
+    return cleaned
 
 
 class SellerService:
@@ -196,12 +237,17 @@ class SellerService:
 
     def propose_caption(self, product_id: str, reason: str, *, actor: str, name: str | None = None,
                         description: str | None = None, tags: list[str] | None = None,
-                        revision_of: str | None = None, inputs: dict[str, Any] | None = None) -> dict[str, Any]:
+                        revision_of: str | None = None, inputs: dict[str, Any] | None = None,
+                        request_id: str | None = None) -> dict[str, Any]:
         """Create a ``pending`` proposal. The product does not change.
 
         ``inputs`` records what the author used besides the caption and product
-        data, e.g. ``{"images": [ImageRef as dict, ...]}`` for the images the
-        model saw (C3b); it is stored as given and shown with the proposal.
+        data, e.g. ``{"images": [ImageRef as dict, ...], "seller_facts": {...}}``
+        (C3b); it is stored as given and shown with the proposal.
+
+        ``request_id`` makes this the answer to an open caption request (first
+        version only, not a revision): the request becomes ``proposed`` in the
+        same transaction.
         """
         if not reason.strip():
             raise SellerError("missing_reason", "reason is required")
@@ -212,15 +258,105 @@ class SellerService:
             previous = None
             if revision_of is not None:
                 previous = self._revisable(conn, parse_proposal_id(revision_of), product_id)
+            request = None
+            if request_id is not None:
+                if revision_of is not None:
+                    raise SellerError("invalid_revision", "a revision belongs to its chain, not to a request")
+                request = self._open_request(conn, parse_request_id(request_id), "propose for")
+                if request["product_id"] != product_id:
+                    raise SellerError("invalid_request", f"{request_id} is for {request['product_id']}")
+                outside = sorted(set(changes) - set(json.loads(request["fields"])))
+                if outside:
+                    raise SellerError("field_not_allowed", f"{request_id} only allows {json.loads(request['fields'])}; "
+                                      f"leave {outside} out")
             cur = conn.execute(
                 "INSERT INTO caption_proposals (product_id, status, changes, reason, base_caption_version, "
-                "revision_of, created_at, created_by, inputs) VALUES (?, 'pending', ?, ?, ?, ?, ?, ?, ?)",
+                "revision_of, created_at, created_by, inputs, request_id) "
+                "VALUES (?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)",
                 (product_id, dumps(changes), reason.strip(), caption_version(product), previous, now, actor,
-                 dumps(inputs) if inputs else None))
+                 dumps(inputs) if inputs else None, request["id"] if request else None))
+            if request is not None:
+                conn.execute("UPDATE caption_requests SET status = 'proposed', proposal_id = ?, closed_at = ?, "
+                             "closed_by = ? WHERE id = ?", (cur.lastrowid, now, actor, request["id"]))
             self._audit(conn, now, actor, "proposed", product_id, cur.lastrowid,
                         {"changes": changes, "reason": reason.strip(),
-                         "revision_of": format_proposal_id(previous) if previous else None})
+                         "revision_of": format_proposal_id(previous) if previous else None,
+                         "request_id": request_id})
             return self._proposal(conn, cur.lastrowid)
+
+    # ------------------------------------------------------ caption requests
+
+    def request_caption(self, product_id: str, *, actor: str, fields: list[str] | None = None,
+                        instruction: str = "") -> dict[str, Any]:
+        """Ask the agent for a caption from scratch; the approval graph drafts and proposes it."""
+        chosen = list(dict.fromkeys(["description"] if fields is None else fields))
+        if not chosen or any(f not in CAPTION_FIELDS for f in chosen):
+            raise SellerError("invalid_request", f"fields must be some of {list(CAPTION_FIELDS)}")
+        if len(instruction) > MAX_INSTRUCTION_LENGTH:
+            raise SellerError("invalid_request", f"instruction is longer than {MAX_INSTRUCTION_LENGTH} characters")
+        now = self._clock()
+        with self._connect() as conn, transaction(conn):
+            self._product_row(conn, product_id)
+            cur = conn.execute(
+                "INSERT INTO caption_requests (product_id, status, fields, instruction, created_at, created_by) "
+                "VALUES (?, 'open', ?, ?, ?, ?)", (product_id, dumps(chosen), instruction.strip(), now, actor))
+            self._audit(conn, now, actor, "caption_requested", product_id, None,
+                        {"request_id": format_request_id(cur.lastrowid), "fields": chosen,
+                         "instruction": instruction.strip()})
+            return self._request(conn, cur.lastrowid)
+
+    def get_request(self, request_id: str) -> dict[str, Any]:
+        with self._connect() as conn:
+            return self._request(conn, parse_request_id(request_id))
+
+    def list_requests(self, *, status: str | None = None, product_id: str | None = None,
+                      limit: int = 50) -> list[dict[str, Any]]:
+        if status is not None and status not in REQUEST_STATUSES:
+            raise SellerError("invalid_status", f"status must be one of {list(REQUEST_STATUSES)}")
+        sql, args = "SELECT id FROM caption_requests WHERE 1 = 1", []
+        if status:
+            sql, args = sql + " AND status = ?", [*args, status]
+        if product_id:
+            sql, args = sql + " AND product_id = ?", [*args, product_id]
+        with self._connect() as conn:
+            ids = [r["id"] for r in conn.execute(sql + " ORDER BY id DESC LIMIT ?", (*args, limit))]
+            return [self._request(conn, i) for i in ids]
+
+    def cancel_request(self, request_id: str, *, actor: str) -> dict[str, Any]:
+        rid = parse_request_id(request_id)
+        now = self._clock()
+        with self._connect() as conn, transaction(conn):
+            row = self._open_request(conn, rid, "cancel")
+            conn.execute("UPDATE caption_requests SET status = 'cancelled', closed_at = ?, closed_by = ? "
+                         "WHERE id = ?", (now, actor, rid))
+            self._audit(conn, now, actor, "caption_request_cancelled", row["product_id"], None,
+                        {"request_id": request_id})
+            return self._request(conn, rid)
+
+    # --------------------------------------------------- product facts (memory)
+
+    def remember_facts(self, product_id: str, facts: dict[str, str | None], *, actor: str,
+                       source: str | None = None) -> dict[str, dict[str, Any]]:
+        """Record what the seller said about a product; returns all current facts.
+
+        Append-only: a new answer for a key is a new row and wins. An empty
+        value is stored as ``None`` ("the seller does not know").
+        """
+        cleaned = clean_facts(facts)
+        now = self._clock()
+        with self._connect() as conn, transaction(conn):
+            self._product_row(conn, product_id)
+            conn.executemany(
+                "INSERT INTO product_facts (product_id, key, value, source, created_at, created_by) "
+                "VALUES (?, ?, ?, ?, ?, ?)", [(product_id, k, v, source, now, actor) for k, v in cleaned.items()])
+            self._audit(conn, now, actor, "facts_recorded", product_id, None, {"facts": cleaned, "source": source})
+            return self._facts_of(conn, product_id)
+
+    def product_facts(self, product_id: str) -> dict[str, dict[str, Any]]:
+        """The latest fact per key: ``{key: {"value", "source", "at", "by"}}`` (``value`` None = unknown)."""
+        with self._connect() as conn:
+            self._product_row(conn, product_id)
+            return self._facts_of(conn, product_id)
 
     def approve(self, proposal_id: str, *, actor: str, note: str | None = None) -> dict[str, Any]:
         """Apply a pending proposal: new caption version + product caption, atomically."""
@@ -304,6 +440,36 @@ class SellerService:
         if row is None:
             raise SellerError("proposal_not_found", f"no proposal with id {format_proposal_id(pid)!r}")
         return row
+
+    def _request_row(self, conn: sqlite3.Connection, rid: int) -> sqlite3.Row:
+        row = conn.execute("SELECT * FROM caption_requests WHERE id = ?", (rid,)).fetchone()
+        if row is None:
+            raise SellerError("request_not_found", f"no caption request with id {format_request_id(rid)!r}")
+        return row
+
+    def _open_request(self, conn: sqlite3.Connection, rid: int, action: str) -> sqlite3.Row:
+        row = self._request_row(conn, rid)
+        if row["status"] != "open":
+            raise SellerError("invalid_transition", f"cannot {action} a {row['status']} caption request")
+        return row
+
+    def _request(self, conn: sqlite3.Connection, rid: int) -> dict[str, Any]:
+        row = self._request_row(conn, rid)
+        return {
+            "request_id": format_request_id(row["id"]),
+            "product_id": row["product_id"],
+            "status": row["status"],
+            "fields": json.loads(row["fields"]),
+            "instruction": row["instruction"],
+            "proposal_id": format_proposal_id(row["proposal_id"]) if row["proposal_id"] else None,
+            "created_at": row["created_at"], "created_by": row["created_by"],
+            "closed_at": row["closed_at"], "closed_by": row["closed_by"],
+        }
+
+    def _facts_of(self, conn: sqlite3.Connection, product_id: str) -> dict[str, dict[str, Any]]:
+        rows = conn.execute("SELECT * FROM product_facts WHERE product_id = ? ORDER BY id", (product_id,))
+        return {r["key"]: {"value": r["value"], "source": r["source"], "at": r["created_at"], "by": r["created_by"]}
+                for r in rows}   # later rows overwrite earlier ones: the latest answer counts
 
     def _pending(self, conn: sqlite3.Connection, pid: int, action: str) -> sqlite3.Row:
         row = self._row(conn, pid)
@@ -397,6 +563,7 @@ class SellerService:
             "applied_version_id": row["applied_version_id"],
             "reverted_at": row["reverted_at"], "reverted_by": row["reverted_by"],
             "inputs": json.loads(row["inputs"]) if row["inputs"] else None,
+            "request_id": format_request_id(row["request_id"]) if row["request_id"] else None,
         }
 
 
