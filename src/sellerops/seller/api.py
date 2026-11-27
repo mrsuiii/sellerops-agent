@@ -82,6 +82,8 @@ ERROR_STATUS = {
     "not_waiting_for_answer": 409,
     "not_waiting_for_decision": 409,
     "llm_budget_exhausted": 429,
+    # seller chat (sellerops.workflows.chat)
+    "agent_unavailable": 503,
 }  # every other code is a bad request (422)
 
 router = APIRouter(prefix="/api/seller", tags=["seller"])

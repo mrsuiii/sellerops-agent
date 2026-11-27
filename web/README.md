@@ -26,6 +26,10 @@ src/
   pages/seller/ queue, proposal and caption-request detail, question form, new caption drawer
 ```
 
+The seller page has a chat with the seller agent (“Chat agent”): it answers from the store data
+(sales, stock, reviews, products) and can propose caption changes, which appear in the queue.
+The agent runs on the real model in production and on a fake echo with `make store-fake`.
+
 Filters and the seller's status tab live in the URL, so a view can be shared and survives a reload.
 
 ## Checks

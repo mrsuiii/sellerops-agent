@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, MessageSquare, Plus } from "lucide-react";
+import { SellerChat } from "./SellerChat";
 import { useLlmBudget, useProposalQueue, useRequestQueue, useSellerProducts } from "../../api/seller";
 import { Drawer } from "../../components/drawer";
 import { useSellerUser } from "../../lib/seller-user";
@@ -19,6 +20,7 @@ export default function SellerPage() {
   const { id } = useParams();
   const [tab, setTab] = useState<string>("pending");
   const [creating, setCreating] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const { draft, user, setDraft } = useSellerUser();
   const budget = useLlmBudget();
 
@@ -50,6 +52,9 @@ export default function SellerPage() {
               {user ? "Nama ini tercatat di setiap perubahan." : "Pakai huruf, angka, titik, @, atau -."}
             </span>
           </label>
+          <button className="btn-ghost" onClick={() => setChatOpen(true)}>
+            <MessageSquare size={16} aria-hidden /> Chat agent
+          </button>
           <button className="btn-primary" onClick={() => setCreating(true)}>
             <Plus size={16} aria-hidden /> Caption baru
           </button>
@@ -89,6 +94,8 @@ export default function SellerPage() {
       <Drawer open={creating} onClose={() => setCreating(false)} title="Caption baru">
         <NewCaptionForm onDone={() => setCreating(false)} />
       </Drawer>
+
+      <SellerChat open={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
   );
 }

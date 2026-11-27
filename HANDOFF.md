@@ -190,5 +190,8 @@ giliran kedua dst. no-op di LangGraph. Runner memakai `eval_run_id`.
 - Tes: pytest (termasuk `tests/store/test_frontend.py`), vitest (`web/src/lib/*.test.ts`),
   Playwright e2e (`web/e2e/`, 11 tes, Chrome terpasang, server dan database sementara).
   `make test` menjalankan semuanya; `make lint` menjalankan ruff, tsc, dan ESLint.
+- Chat agent seller (`/seller`, tombol "Chat agent"): `workflows/chat/` (graph chat dari harness,
+  tool seller produksi, `propose_caption_update` tanpa approve), rute `/api/seller/chat/threads/{id}`.
+  Model asli diuji satu giliran (tool `get_inventory_status`, angka sesuai data). Tes: `tests/workflows/test_chat_api.py`.
 - Belum: keputusan bahasa caption (Inggris vs Indonesia), login (header
   `X-Seller-User` masih dipercaya tanpa autentikasi), commit perubahan sesi ini.

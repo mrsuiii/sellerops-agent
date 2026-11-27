@@ -33,5 +33,8 @@ export const STATUS_LABEL: Record<string, string> = {
 };
 
 /** Who an actor is, in Indonesian. `seller:` prefixes are stripped; the agent is named. */
-export const whoLabel = (actor: string | null | undefined): string =>
-  actor === "agent:caption-approval" ? "agent (revisi)" : String(actor ?? "").replace(/^seller:/, "");
+export const whoLabel = (actor: string | null | undefined): string => {
+  if (actor === "agent:caption-approval") return "agent (revisi)";
+  if (actor === "agent:chat") return "agent (chat)";
+  return String(actor ?? "").replace(/^seller:/, "");
+};

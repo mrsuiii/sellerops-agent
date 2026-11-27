@@ -74,6 +74,9 @@ except ImportError as error:
     logger.info("caption approval workflow not mounted", extra={"missing": error.name})
 else:
     approval_api.install(app)
+    from ..workflows.chat import api as chat_api
+
+    chat_api.install(app)
 
 if settings.cors_origins:
     app.add_middleware(
