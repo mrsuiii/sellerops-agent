@@ -10,6 +10,7 @@ import {
   useSellerProducts,
 } from "../../api/seller";
 import { useToast } from "../../components/toast";
+import { friendly } from "../../lib/errors";
 import { when, whoLabel } from "../../lib/format";
 import { AuditTable, FactsPanel, Notice, QuestionForm, Spinner, StatusPill, fieldLabels } from "./parts";
 import { useThreadResult } from "./use-thread-result";
@@ -28,7 +29,7 @@ export function RequestDetail({ id }: { id: string }) {
   const toast = useToast();
 
   if (request.isPending) return <Spinner label={`Memuat ${id}…`} />;
-  if (request.isError || !r) return <Notice tone="bad">Gagal memuat {id}: {request.error?.message}</Notice>;
+  if (request.isError || !r) return <Notice tone="bad">Gagal memuat {id}: {friendly(request.error?.message)}</Notice>;
 
   const a = approval.data ?? null;
   const product = products.data?.[r.product_id];

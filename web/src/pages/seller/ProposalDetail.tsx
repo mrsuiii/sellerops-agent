@@ -14,6 +14,7 @@ import {
 } from "../../api/seller";
 import type { ChangeField } from "../../api/types";
 import { useToast } from "../../components/toast";
+import { friendly } from "../../lib/errors";
 import { FIELD_LABEL, when, whoLabel } from "../../lib/format";
 import {
   AuditTable,
@@ -50,7 +51,7 @@ export function ProposalDetail({ id }: { id: string }) {
 
   if (proposal.isPending) return <Spinner label={`Memuat ${id}…`} />;
   if (proposal.isError || !p) {
-    return <Notice tone="bad">Gagal memuat {id}: {proposal.error?.message}</Notice>;
+    return <Notice tone="bad">Gagal memuat {id}: {friendly(proposal.error?.message)}</Notice>;
   }
 
   const a = approval.data ?? null;

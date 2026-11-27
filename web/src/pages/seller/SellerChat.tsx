@@ -16,6 +16,11 @@ const TOOL_LABEL: Record<string, string> = {
   propose_caption_update: "usulan caption",
 };
 const MAX_CHARS = 2000;
+const SUGGESTIONS = [
+  "Berapa penjualan 7 hari terakhir?",
+  "Produk apa yang stoknya paling cepat habis?",
+  "Perbaiki deskripsi FS180 agar lebih menarik",
+];
 
 /** Chat with the seller agent (real model in production). Replies can read the store and propose caption changes. */
 export function SellerChat({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -80,9 +85,19 @@ export function SellerChat({ open, onClose }: { open: boolean; onClose: () => vo
         <div className="flex flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-line bg-surface p-4" aria-live="polite">
           {history.isPending && open && <Spinner label="Memuat percakapan…" />}
           {history.isSuccess && messages.length === 0 && !pending && (
-            <p className="m-auto max-w-xs text-center text-sm text-muted">
-              Belum ada percakapan. Coba: “berapa penjualan bulan ini?” atau “perbaiki deskripsi FS180 agar lebih menarik”.
-            </p>
+            <div className="m-auto flex max-w-xs flex-col items-center gap-3 text-center">
+              <p className="text-sm text-muted">Belum ada percakapan. Coba salah satu:</p>
+              {SUGGESTIONS.map((text) => (
+                <button
+                  key={text}
+                  type="button"
+                  onClick={() => setDraft(text)}
+                  className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-left text-sm transition hover:border-ink"
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
           )}
 
           {messages.map((message, i) => (
