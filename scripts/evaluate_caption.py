@@ -3,6 +3,7 @@
     python scripts/evaluate_caption.py --k 3 --judge                       # Claude agent, NVIDIA judge
     python scripts/evaluate_caption.py --k 1 --judge --agent-provider openai_compatible   # Nemotron agent, Claude judge
     python scripts/evaluate_caption.py --scenario photo --k 1              # one scenario, no judge
+    python scripts/evaluate_caption.py --rejudge results/evaluation/caption-…  # checks + judge again, no agent calls
 
 Calls the LLM (costs money). Product photos are fetched from the catalog CDN.
 Output: ``results/evaluation/caption-<run_id>/`` with ``config.json``,
@@ -33,6 +34,8 @@ from sellerops.evaluation.caption_eval import (  # noqa: E402
     SCENARIOS,
     CaptionJudge,
     JudgeError,
+    Trial,
+    check,
     run_trial,
 )
 from sellerops.evaluation.judge import nvidia_judge_model  # noqa: E402
@@ -51,6 +54,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--agent-model", default=None)
     parser.add_argument("--judge", action="store_true",
                         help="LLM judge on code passes: NVIDIA for a Claude agent, Claude for any other agent")
+    parser.add_argument("--judge-model", default=None,
+                        help="NVIDIA judge model id (default: SELLEROPS_JUDGE_MODEL, then LLM_MODEL)")
+    parser.add_argument("--rejudge", type=Path, default=None,
+                        help="a previous run: re-run the code checks and the judge on its records (no agent calls)")
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--out", type=Path, default=None)
     return parser.parse_args()
@@ -75,16 +82,22 @@ def main() -> int:
             agent_settings = replace(agent_settings, llm_model=os.environ.get("LLM_MODEL", "").strip())
     if agent_settings.llm_provider == "anthropic" and not os.environ.get("ANTHROPIC_API_KEY"):
         sys.exit("ANTHROPIC_API_KEY is not set")
+    if args.rejudge:
+        return rejudge(args, settings)
     model = get_chat_model(agent_settings).with_config(tags=["caption-eval"])
     scenarios = [s for s in SCENARIOS if not args.scenario or any(f in s.id for f in args.scenario)]
     if not scenarios:
         sys.exit("no scenario matches")
 
     judge = None
+    if args.rejudge:
+        previous = json.loads((args.rejudge / "config.json").read_text())
+        agent_settings = replace(settings, llm_provider=previous["agent_provider"], llm_model=previous["agent_model"])
     if args.judge:   # another model family than the agent
         if agent_settings.llm_provider == "anthropic":
-            judge = CaptionJudge(nvidia_judge_model(), os.environ.get("SELLEROPS_JUDGE_MODEL")
-                                 or os.environ.get("LLM_MODEL", "nvidia"))
+            name = (args.judge_model or os.environ.get("SELLEROPS_JUDGE_MODEL") or os.environ.get("LLM_MODEL")
+                    or "nvidia")
+            judge = CaptionJudge(nvidia_judge_model(args.judge_model), name)
         else:
             claude = replace(settings, llm_provider="anthropic", llm_model=settings.llm_model
                              if settings.llm_provider == "anthropic" else "claude-haiku-5-5")
@@ -116,7 +129,9 @@ def main() -> int:
                                images_factory=lambda: ProductImages(image_store))
             if judge and record.code_pass:
                 service = SellerService(work / f"{scenario.id}-{trial}.sqlite")
-                facts = {k: v["value"] for k, v in service.product_facts(scenario.product_id).items()}
+                # what the seller knew before plus what they answered (the API runner, not the graph,
+                # stores answers as product facts, so the trial's database does not have them)
+                facts = {**scenario.facts, **record.answers_given}
                 product = service.analytics().product(scenario.product_id)
                 try:
                     record.judge = judge.assess(scenario, record, product, facts)
@@ -139,6 +154,60 @@ def main() -> int:
         for record in records:
             handle.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
     summary = summarise(records, scenarios, args.k, config)
+    (out / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False))
+    (out / "summary.md").write_text(markdown(summary))
+    print(markdown(summary))
+    print(f"[caption-eval] saved to {out}")
+    return 0
+
+
+def rejudge(args, settings) -> int:
+    """Checks and judge again on a saved run: fixes to a check or a broken judge cost no agent calls."""
+    previous = json.loads((args.rejudge / "config.json").read_text())
+    by_id = {s.id: s for s in SCENARIOS}
+    records = []
+    for line in (args.rejudge / "records.jsonl").read_text().splitlines():
+        data = json.loads(line)
+        data.pop("judge", None)
+        records.append(Trial(**{**data, "judge": None}))
+    scenarios = [by_id[sid] for sid in previous["scenarios"]]
+    judge = None
+    if args.judge:
+        if previous["agent_provider"] == "anthropic":
+            name = args.judge_model or os.environ.get("SELLEROPS_JUDGE_MODEL") or os.environ.get("LLM_MODEL")
+            judge = CaptionJudge(nvidia_judge_model(args.judge_model), name)
+        else:
+            claude = replace(settings, llm_provider="anthropic", llm_model="claude-haiku-5-5")
+            judge = CaptionJudge(get_chat_model(claude, max_tokens=2000), claude.llm_model)
+    with tempfile.TemporaryDirectory(prefix="caption-rejudge-") as tmp:
+        service = SellerService.open(Path(tmp) / "seller.sqlite", catalog_path=settings.catalog_path,
+                                     sim_dir=settings.data_dir / "seller_sim")
+
+        def one(record):
+            scenario = by_id[record.scenario]
+            record.checks = check(scenario, record)
+            record.code_pass = all(record.checks.values())
+            if judge and record.code_pass:
+                facts = {**scenario.facts, **record.answers_given}
+                try:
+                    record.judge = judge.assess(scenario, record, service.analytics().product(scenario.product_id),
+                                                facts)
+                except JudgeError as error:
+                    record.judge = {"status": "error", "pass": None, "error": str(error)}
+            record.passed = record.judge.get("pass") if record.judge else record.code_pass
+            return record
+
+        with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
+            records = list(pool.map(one, records))
+    out = args.out or args.rejudge.with_name(previous["run_id"] + "-rejudged")
+    config = {**previous, "run_id": out.name, "rejudged_from": previous["run_id"],
+              "judge": judge.metadata if judge else None, "git_commit": git_commit()}
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "config.json").write_text(json.dumps(config, indent=2))
+    with (out / "records.jsonl").open("w") as handle:
+        for record in records:
+            handle.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
+    summary = summarise(records, scenarios, previous["k"], config)
     (out / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False))
     (out / "summary.md").write_text(markdown(summary))
     print(markdown(summary))

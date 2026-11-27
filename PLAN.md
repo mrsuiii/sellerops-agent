@@ -534,8 +534,12 @@ Langkah:
 - [x] Test: fake model menerima content block gambar; host di luar daftar
   ditolak; cache hit tidak mengunduh ulang; model tanpa vision tetap jalan
   (`tests/workflows/test_caption_c3b.py`, `tests/seller/test_images.py`).
-- [ ] Test live (berbayar, perlu persetujuan): agent bertanya soal bahan lalu
-  memakainya; foto → deskripsi menyebut putih / polkadot / pita.
+- [x] Eval workflow caption (27 Nov, `scripts/evaluate_caption.py`, 11
+  skenario, cek kode + cross-judge): Haiku k=3 pass@1 0.91 / pass^3 0.73
+  (kode 1.00, bertanya benar 33/33); Nemotron k=1 0.64. Laporan:
+  `docs/eval-caption-2026-11-27.md`. Terbuka: bahasa caption (27/33 ditulis
+  dalam Bahasa Indonesia walaupun caption sekarang Inggris), kalibrasi judge.
+- [ ] Test live (`make test-live`, opsional; eval di atas sudah mencakupnya).
 
 DoD: revisi caption memakai foto produk lewat backend (tanpa URL ke model),
 hash gambar tercatat di proposal, dan alur tetap jalan untuk model tanpa

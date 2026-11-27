@@ -1,0 +1,175 @@
+{
+  "config": {
+    "run_id": "caption-20261127-022824-nvidia_nemotron-3-ultra-550b-a55b-b198",
+    "eval": "caption-workflow",
+    "k": 1,
+    "scenarios": [
+      "request-plain",
+      "request-material-asks",
+      "request-material-unknown",
+      "request-material-remembered",
+      "request-unknown-remembered",
+      "request-photo-colour",
+      "request-name-tags",
+      "reject-shorter",
+      "reject-care-asks",
+      "reject-no-reason",
+      "reject-photo-and-material"
+    ],
+    "agent_provider": "openai_compatible",
+    "agent_model": "nvidia/nemotron-3-ultra-550b-a55b",
+    "agent_effort": null,
+    "agent_vision": false,
+    "judge": {
+      "model": "claude-haiku-5-5",
+      "rubric_version": "caption-v2",
+      "rubric_sha256": "edb4008285cc5139caa334ce689622f242a7d963a36741e9b1ae7fc384129a9d"
+    },
+    "git_commit": "30a948b",
+    "started_at": "20261127-022824"
+  },
+  "overall": {
+    "pass@1": 0.5454545454545454,
+    "pass^1": 0.5454545454545454
+  },
+  "code_only": {
+    "pass@1": 0.8181818181818182,
+    "pass^1": 0.8181818181818182
+  },
+  "judge": {
+    "scored": 9,
+    "passed": 6,
+    "errors": 0
+  },
+  "crashed": 0,
+  "ask_accuracy": "10/11",
+  "median_seconds": 11.9,
+  "avg_tokens": {
+    "input": 2054,
+    "output": 467
+  },
+  "scenarios": {
+    "request-plain": {
+      "passed": 1,
+      "code_passed": 1,
+      "trials": 1,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0
+      ]
+    },
+    "request-material-asks": {
+      "passed": 0,
+      "code_passed": 1,
+      "trials": 1,
+      "failed_checks": [],
+      "judge_fail": [
+        "Bahan 'kain linen' dan sifat 'breathable' tidak ada di current_caption, product_data, seller_facts (kosong) maupun photo (null). Reason juga mengklaim linen 'sesuai permintaan seller', padahal seller tidak memberi informasi bahan."
+      ],
+      "asked": [
+        1
+      ]
+    },
+    "request-material-unknown": {
+      "passed": 1,
+      "code_passed": 1,
+      "trials": 1,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        1
+      ]
+    },
+    "request-material-remembered": {
+      "passed": 0,
+      "code_passed": 1,
+      "trials": 1,
+      "failed_checks": [],
+      "judge_fail": [
+        "Caption adds 'soft cotton fabric', which matches seller_facts material 'katun'. The 2-year warranty, overnight shipping and 90-day returns match product_data. The reason mentions only the fabric addition, but the caption also newly adds the warranty, shipping and returns sentence, which the reason does not disclose."
+      ],
+      "asked": [
+        0
+      ]
+    },
+    "request-unknown-remembered": {
+      "passed": 1,
+      "code_passed": 1,
+      "trials": 1,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0
+      ]
+    },
+    "request-photo-colour": {
+      "passed": 0,
+      "code_passed": 0,
+      "trials": 1,
+      "failed_checks": [
+        "ask_behaviour",
+        "includes_polka_1",
+        "includes_white"
+      ],
+      "judge_fail": [],
+      "asked": [
+        2
+      ]
+    },
+    "request-name-tags": {
+      "passed": 1,
+      "code_passed": 1,
+      "trials": 1,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0
+      ]
+    },
+    "reject-shorter": {
+      "passed": 1,
+      "code_passed": 1,
+      "trials": 1,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0
+      ]
+    },
+    "reject-care-asks": {
+      "passed": 0,
+      "code_passed": 1,
+      "trials": 1,
+      "failed_checks": [],
+      "judge_fail": [
+        "The caption adds 'Care: Wash with cold water, do not wring.' but no source holds care instructions (seller_facts is empty, product_data has none). The reason says the instructions were added as the seller requested, without noting they are unknown."
+      ],
+      "asked": [
+        1
+      ]
+    },
+    "reject-no-reason": {
+      "passed": 1,
+      "code_passed": 1,
+      "trials": 1,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0
+      ]
+    },
+    "reject-photo-and-material": {
+      "passed": 0,
+      "code_passed": 0,
+      "trials": 1,
+      "failed_checks": [
+        "includes_white_1"
+      ],
+      "judge_fail": [],
+      "asked": [
+        2
+      ]
+    }
+  }
+}

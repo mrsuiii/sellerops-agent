@@ -1,0 +1,30 @@
+{
+  "run_id": "caption-20261127-021804-claude-haiku-5-5-4be9-rejudged",
+  "eval": "caption-workflow",
+  "k": 3,
+  "scenarios": [
+    "request-plain",
+    "request-material-asks",
+    "request-material-unknown",
+    "request-material-remembered",
+    "request-unknown-remembered",
+    "request-photo-colour",
+    "request-name-tags",
+    "reject-shorter",
+    "reject-care-asks",
+    "reject-no-reason",
+    "reject-photo-and-material"
+  ],
+  "agent_provider": "anthropic",
+  "agent_model": "claude-haiku-5-5",
+  "agent_effort": "medium",
+  "agent_vision": true,
+  "judge": {
+    "model": "nvidia/nemotron-3-ultra-550b-a55b",
+    "rubric_version": "caption-v2",
+    "rubric_sha256": "edb4008285cc5139caa334ce689622f242a7d963a36741e9b1ae7fc384129a9d"
+  },
+  "git_commit": "30a948b",
+  "started_at": "20261127-021804",
+  "rejudged_from": "caption-20261127-021804-claude-haiku-5-5-4be9"
+}

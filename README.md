@@ -31,6 +31,16 @@ What to try on the seller page:
 3. **Check the audit trail.** Every proposal records the photo the model saw (by
    SHA-256) and the seller facts it used, and the audit log lists every step.
 
+Evaluation of this workflow (11 scenarios, code checks plus a judge from another model
+family, [docs/eval-caption-2026-11-27.md](docs/eval-caption-2026-11-27.md)):
+
+| Agent | code checks pass@1 | code + judge pass@1 | pass^k | asks when (and only when) needed |
+|---|---|---|---|---|
+| Claude Haiku 5.5, k=3 | 1.00 | 0.91 | pass^3 0.73 | 33/33 |
+| Nemotron 3 Ultra (no vision), k=1 | 0.82 | 0.64 | n/a | 10/11 |
+
+The judge is not yet calibrated against human labels.
+
 How it is built: a LangGraph `StateGraph` written node by node, without
 `create_agent`. It uses `interrupt()` for the seller's decision and for the
 agent's questions, a SQLite checkpointer so threads survive restarts, and a
@@ -200,6 +210,7 @@ Both images run as a non-root user; the store exposes a health check at `/api/he
 - [src/sellerops/evaluation/README.md](src/sellerops/evaluation/README.md): seller simulator, planted scenarios, multi-turn eval
 - [web/README.md](web/README.md): Kala Studio store and API
 - [docs/deploy.md](docs/deploy.md): public demo on Fly.io (budget, reset, secrets)
+- [docs/eval-caption-2026-11-27.md](docs/eval-caption-2026-11-27.md): caption workflow eval (`scripts/evaluate_caption.py`)
 - [PLAN.md](PLAN.md): learning plan and milestones
 - The Qwen 0.5B track (code, weights, notebooks, results, old simulator) was removed on 17 Nov 2026;
   artifacts live in `../../archive/sellerops-sft-0.5b/` and the code in git history.

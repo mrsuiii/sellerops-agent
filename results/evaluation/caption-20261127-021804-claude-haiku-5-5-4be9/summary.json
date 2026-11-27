@@ -1,0 +1,191 @@
+{
+  "config": {
+    "run_id": "caption-20261127-021804-claude-haiku-5-5-4be9",
+    "eval": "caption-workflow",
+    "k": 3,
+    "scenarios": [
+      "request-plain",
+      "request-material-asks",
+      "request-material-unknown",
+      "request-material-remembered",
+      "request-unknown-remembered",
+      "request-photo-colour",
+      "request-name-tags",
+      "reject-shorter",
+      "reject-care-asks",
+      "reject-no-reason",
+      "reject-photo-and-material"
+    ],
+    "agent_provider": "anthropic",
+    "agent_model": "claude-haiku-5-5",
+    "agent_effort": "medium",
+    "agent_vision": true,
+    "judge": {
+      "model": "meta/muse-glimmer-30b",
+      "rubric_version": "caption-v1",
+      "rubric_sha256": "5f7d8421ef0f5f400e28f8b67541bea11ddd00c855a9b0069c37d328cdc3e72e"
+    },
+    "git_commit": "f81b107",
+    "started_at": "20261127-021804"
+  },
+  "overall": {
+    "pass@1": null,
+    "pass@3": null,
+    "pass^1": null,
+    "pass^3": null
+  },
+  "code_only": {
+    "pass@1": 0.9393939393939394,
+    "pass@3": 1.0,
+    "pass^1": 0.9393939393939394,
+    "pass^3": 0.9090909090909091
+  },
+  "judge": {
+    "scored": 0,
+    "passed": 0,
+    "errors": 31
+  },
+  "crashed": 0,
+  "ask_accuracy": "33/33",
+  "median_seconds": 3.32,
+  "avg_tokens": {
+    "input": 3300,
+    "output": 537
+  },
+  "scenarios": {
+    "request-plain": {
+      "passed": 0,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "request-material-asks": {
+      "passed": 0,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        1,
+        1,
+        1
+      ]
+    },
+    "request-material-unknown": {
+      "passed": 0,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        1,
+        1,
+        1
+      ]
+    },
+    "request-material-remembered": {
+      "passed": 0,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "request-unknown-remembered": {
+      "passed": 0,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "request-photo-colour": {
+      "passed": 0,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "request-name-tags": {
+      "passed": 0,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "reject-shorter": {
+      "passed": 0,
+      "code_passed": 1,
+      "trials": 3,
+      "failed_checks": [
+        "short_enough"
+      ],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "reject-care-asks": {
+      "passed": 0,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        2,
+        2,
+        2
+      ]
+    },
+    "reject-no-reason": {
+      "passed": 0,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "reject-photo-and-material": {
+      "passed": 0,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        2,
+        1,
+        1
+      ]
+    }
+  }
+}

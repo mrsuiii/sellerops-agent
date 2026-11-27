@@ -1,0 +1,196 @@
+{
+  "config": {
+    "run_id": "caption-20261127-021804-claude-haiku-5-5-4be9-rejudged",
+    "eval": "caption-workflow",
+    "k": 3,
+    "scenarios": [
+      "request-plain",
+      "request-material-asks",
+      "request-material-unknown",
+      "request-material-remembered",
+      "request-unknown-remembered",
+      "request-photo-colour",
+      "request-name-tags",
+      "reject-shorter",
+      "reject-care-asks",
+      "reject-no-reason",
+      "reject-photo-and-material"
+    ],
+    "agent_provider": "anthropic",
+    "agent_model": "claude-haiku-5-5",
+    "agent_effort": "medium",
+    "agent_vision": true,
+    "judge": {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "rubric_version": "caption-v2",
+      "rubric_sha256": "edb4008285cc5139caa334ce689622f242a7d963a36741e9b1ae7fc384129a9d"
+    },
+    "git_commit": "30a948b",
+    "started_at": "20261127-021804",
+    "rejudged_from": "caption-20261127-021804-claude-haiku-5-5-4be9"
+  },
+  "overall": {
+    "pass@1": 0.9090909090909091,
+    "pass@3": 1.0,
+    "pass^1": 0.9090909090909091,
+    "pass^3": 0.7272727272727273
+  },
+  "code_only": {
+    "pass@1": 1.0,
+    "pass@3": 1.0,
+    "pass^1": 1.0,
+    "pass^3": 1.0
+  },
+  "judge": {
+    "scored": 33,
+    "passed": 30,
+    "errors": 0
+  },
+  "crashed": 0,
+  "ask_accuracy": "33/33",
+  "median_seconds": 3.32,
+  "avg_tokens": {
+    "input": 3300,
+    "output": 537
+  },
+  "scenarios": {
+    "request-plain": {
+      "passed": 2,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [
+        "Reason falsely states 'suitable for casual and semi-formal' had no source and was deleted; current_caption supports it and the new caption keeps it."
+      ],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "request-material-asks": {
+      "passed": 3,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        1,
+        1,
+        1
+      ]
+    },
+    "request-material-unknown": {
+      "passed": 3,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        1,
+        1,
+        1
+      ]
+    },
+    "request-material-remembered": {
+      "passed": 3,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "request-unknown-remembered": {
+      "passed": 3,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "request-photo-colour": {
+      "passed": 2,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [
+        "Caption states 'tepi atas dan bawah rok bermotif lengkung' (skirt top and bottom edges scalloped), but photo only shows scalloped neckline (bodice) and scalloped hem (skirt bottom); waistband is not scalloped."
+      ],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "request-name-tags": {
+      "passed": 3,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "reject-shorter": {
+      "passed": 3,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "reject-care-asks": {
+      "passed": 2,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [
+        "Caption claims 'potongan klasik' (classic cut) but no source (current_caption, product_data, seller_facts, photo) mentions the cut; only pattern is described as classic."
+      ],
+      "asked": [
+        2,
+        2,
+        2
+      ]
+    },
+    "reject-no-reason": {
+      "passed": 3,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        0,
+        0,
+        0
+      ]
+    },
+    "reject-photo-and-material": {
+      "passed": 3,
+      "code_passed": 3,
+      "trials": 3,
+      "failed_checks": [],
+      "judge_fail": [],
+      "asked": [
+        2,
+        1,
+        1
+      ]
+    }
+  }
+}
