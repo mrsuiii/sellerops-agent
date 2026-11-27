@@ -75,6 +75,7 @@ class Settings:
     catalog_path: Path
     seller_db_path: Path  # SQLite database of the seller backend (captions, audit log)
     approvals_db_path: Path  # LangGraph checkpoints of the caption approval workflow
+    images_dir: Path  # prepared product images for the model (seller/images.py), by store and hash
     log_level: str
     log_format: str
     cors_origins: tuple[str, ...]
@@ -83,6 +84,7 @@ class Settings:
     llm_effort: str
     llm_base_url: str  # only used by the openai_compatible provider
     llm_fallback_models: tuple[str, ...]  # same provider; tried in order when the primary fails
+    llm_vision: bool  # openai_compatible only: the configured model reads images (Claude always does)
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -98,6 +100,7 @@ class Settings:
             catalog_path=_env_path("SELLEROPS_CATALOG_PATH", data_dir / "store" / "fashion_catalog.json", root),
             seller_db_path=_env_path("SELLEROPS_SELLER_DB", root / "var" / "seller.sqlite", root),
             approvals_db_path=_env_path("SELLEROPS_APPROVALS_DB", root / "var" / "approvals.sqlite", root),
+            images_dir=_env_path("SELLEROPS_IMAGES_DIR", root / "var" / "images", root),
             log_level=_env_choice("SELLEROPS_LOG_LEVEL", "INFO", _LOG_LEVELS, upper=True),
             log_format=_env_choice("SELLEROPS_LOG_FORMAT", "text", _LOG_FORMATS),
             cors_origins=_env_list("SELLEROPS_CORS_ORIGINS"),
@@ -105,6 +108,7 @@ class Settings:
             llm_model=_llm_model(provider),
             llm_effort=_env_choice("SELLEROPS_LLM_EFFORT", "medium", _LLM_EFFORTS),
             llm_base_url=os.environ.get("LLM_BASE_URL", "").strip() or DEFAULT_LLM_BASE_URL,
+            llm_vision=os.environ.get("SELLEROPS_LLM_VISION", "").strip() == "1",
             llm_fallback_models=_env_list("SELLEROPS_LLM_FALLBACK_MODELS"),
         )
 

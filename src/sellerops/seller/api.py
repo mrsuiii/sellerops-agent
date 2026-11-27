@@ -14,6 +14,7 @@
     POST /api/seller/caption-proposals/{id}/cancel
     POST /api/seller/caption-proposals/{id}/revert
     GET  /api/seller/audit-log                ?product_id&proposal_id&limit
+    GET  /api/seller/images/{sha256}          an image the model saw (proposal ``inputs.images``)
 
 The approval workflow adds ``/caption-proposals/{id}/approval`` routes when
 the agent runtime is installed (``sellerops.workflows.approval.api``); the
@@ -41,11 +42,12 @@ from functools import lru_cache
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, FastAPI, Header, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..settings import get_settings
 from .analytics import SellerError
+from .images import ImageStore, LocalImageStore, is_sha256
 from .registry import SellerServices, SingleStoreServices
 from .service import DEFAULT_STORE_ID, STATUSES, SellerService
 
@@ -56,6 +58,7 @@ ERROR_STATUS = {
     "store_not_found": 404,
     "product_not_found": 404,
     "proposal_not_found": 404,
+    "image_not_found": 404,
     "invalid_transition": 409,
     "stale_proposal": 409,
     "newer_change_exists": 409,
@@ -213,6 +216,23 @@ def revert(service: Service, who: Actor, proposal_id: str, body: DecisionIn | No
 def audit_log(service: Service, product_id: str | None = None, proposal_id: str | None = None,
               limit: int = Query(100, ge=1, le=500)) -> dict[str, Any]:
     return {"entries": service.audit_log(product_id=product_id, proposal_id=proposal_id, limit=limit)}
+
+
+# -------------------------------------------------------------------- images
+
+
+def get_image_store(service: Service) -> ImageStore:
+    """The image store of the request's store; tests override it."""
+    return LocalImageStore(get_settings().images_dir, store_id=service.store_id)
+
+
+@router.get("/images/{sha256}", response_class=Response)
+def image(store: Annotated[ImageStore, Depends(get_image_store)], sha256: str) -> Response:
+    data = store.get(sha256) if is_sha256(sha256) else None
+    if data is None:
+        raise SellerError("image_not_found", f"no image {sha256}")
+    # Content-addressed: the bytes behind a hash never change.
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
 
 # ---------------------------------------------------------------------- wiring

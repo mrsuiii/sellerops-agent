@@ -94,7 +94,8 @@ CREATE TABLE IF NOT EXISTS caption_proposals (
     feedback             TEXT,
     applied_version_id   INTEGER REFERENCES caption_versions(version_id),
     reverted_at          TEXT,
-    reverted_by          TEXT
+    reverted_by          TEXT,
+    inputs               TEXT   -- JSON: what the author used, e.g. {"images": [ImageRef...]} (C3b)
 );
 CREATE INDEX IF NOT EXISTS proposals_product ON caption_proposals(product_id, status);
 CREATE UNIQUE INDEX IF NOT EXISTS proposals_one_revision ON caption_proposals(revision_of)
@@ -175,8 +176,15 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     conn.execute("COMMIT")
 
 
+# Columns added after the first release, for databases created before them.
+_ADDED_COLUMNS = {("caption_proposals", "inputs"): "TEXT"}
+
+
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    for (table, column), kind in _ADDED_COLUMNS.items():
+        if column not in {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
 
 
 def is_seeded(conn: sqlite3.Connection) -> bool:

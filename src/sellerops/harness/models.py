@@ -86,6 +86,29 @@ def supports_prompt_caching(model: Any) -> bool:
     return getattr(model, "_llm_type", "") == "anthropic-chat"
 
 
+def supports_vision(model: Any) -> bool:
+    """Whether image content blocks can go to this model (C3b); callers fall back to text only.
+
+    Every Claude model reads images. The OpenAI-compatible endpoint serves many
+    models, most text only, so it counts only when ``SELLEROPS_LLM_VISION=1``
+    says the configured one does (``Settings.llm_vision``). Wrapped models (``with_config``,
+    ``with_fallbacks``) are unwrapped; a fallback chain counts only if every
+    model in it does.
+    """
+    bound = getattr(model, "bound", None)
+    if bound is not None:                      # RunnableBinding (with_config / bind)
+        return supports_vision(bound)
+    runnables = [getattr(model, "runnable", None), *getattr(model, "fallbacks", ())]
+    if runnables[0] is not None:               # RunnableWithFallbacks
+        return all(supports_vision(item) for item in runnables)
+    kind = getattr(model, "_llm_type", "")
+    if kind == "anthropic-chat":
+        return True
+    if kind == "openai-chat":
+        return get_settings().llm_vision
+    return bool(getattr(model, "supports_vision", False))   # fakes in tests opt in
+
+
 def cached_system_message(text: str) -> SystemMessage:
     """System prompt as a content block with a cache breakpoint."""
     return SystemMessage(content=[{"type": "text", "text": text, "cache_control": CACHE_CONTROL}])

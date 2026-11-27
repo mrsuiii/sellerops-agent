@@ -175,6 +175,7 @@ function detailHtml(p, approval, log) {
     </div>
     ${notices.join("")}
     <div class="reason"><b>Alasan ${p.created_by?.startsWith("agent") ? "agent" : "pengusul"}</b>${esc(p.reason)}</div>
+    ${seenImages(p.inputs?.images)}
     ${Object.entries(p.changes).map(([field, change]) => changeBlock(field, change, fields.includes(field))).join("")}
     ${waitingHere ? `
       <div class="actions" id="actions">
@@ -199,6 +200,14 @@ function detailHtml(p, approval, log) {
           <td class="mono">${e.proposal_id ? `<a href="#/${esc(e.proposal_id)}">${esc(e.proposal_id)}</a>` : ""}</td></tr>`).join("")}
       </tbody></table>
     </details>`;
+}
+
+function seenImages(images) {   // C3b: the exact images the model saw, served by hash
+  if (!images?.length) return "";
+  return `<div class="seen"><b>Gambar yang dilihat model</b><div class="seen-list">${images.map((img) => `
+    <a href="/api/seller/images/${esc(img.sha256)}" target="_blank" rel="noopener" title="${esc(img.source_url || "")}">
+      <img src="/api/seller/images/${esc(img.sha256)}" alt="" loading="lazy">
+      <span class="mono">${esc(img.sha256.slice(0, 8))} · ${img.width}×${img.height}</span></a>`).join("")}</div></div>`;
 }
 
 function bindDetail(p, approval) {

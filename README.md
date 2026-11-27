@@ -90,6 +90,8 @@ Secrets and settings come from environment variables; see
 | `SELLEROPS_PROJECT_ROOT` | repo root (needed for non-editable installs, e.g. Docker) |
 | `SELLEROPS_DATA_DIR`, `SELLEROPS_WEB_DIR`, `SELLEROPS_RESULTS_DIR`, `SELLEROPS_CATALOG_PATH` | override data locations |
 | `SELLEROPS_SELLER_DB` | seller backend SQLite file (default `var/seller.sqlite`, seeded from `data/seller_sim` on first start) |
+| `SELLEROPS_IMAGES_DIR` | prepared product images the model saw, by store and SHA-256 (default `var/images`) |
+| `SELLEROPS_LLM_VISION` | `1` if the `openai_compatible` model reads images (Claude always does) |
 | `SELLEROPS_APPROVALS_DB` | checkpoints of the caption approval workflow (default `var/approvals.sqlite`) |
 | `SELLEROPS_LOG_LEVEL`, `SELLEROPS_LOG_FORMAT` | `INFO`/`DEBUG`/…, `text` or `json` |
 | `SELLEROPS_CORS_ORIGINS` | comma-separated origins allowed to call the store API |

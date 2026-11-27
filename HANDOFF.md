@@ -59,7 +59,11 @@ Branch `feat/c2-c3-backend` (dari `feat/seller-agents`; belum di-push).
   revert, audit log. Toko kini menampilkan caption dari DB seller
   (`shop_catalog` di `store/api.py`, indeks BM25 dibangun ulang hanya saat
   caption berubah). `make store-fake` = tanpa biaya LLM.
-- 254 test lolos (+4 live di-skip), ruff bersih.
+- C3b bagian assistant (27 Nov, branch `feat/c3b-images`): pipeline gambar
+  `seller/images.py`, `supports_vision`, `inputs` di proposal, gambar yang
+  dilihat model di `/seller`. Sisa (Nigka): desain gambar mana/kapan, prompt
+  "terlihat vs fakta data", perubahan `draft_revision` (lihat `PLAN.md` C3b).
+- 275 test lolos (+4 live di-skip), ruff bersih.
 
 Berikutnya (27 Nov; PR #7 sudah di-merge ke `main`): target dekat sampai
 A5. (1) coba reject → revisi dengan model asli (`make test-live` /

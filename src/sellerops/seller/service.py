@@ -149,6 +149,13 @@ class SellerService:
             ids = [r["id"] for r in conn.execute(sql + " ORDER BY id DESC LIMIT ?", (*args, limit))]
             return [self._proposal(conn, i) for i in ids]
 
+    def product_images(self, product_id: str) -> list[str]:
+        """The product's catalog image URLs, thumbnail first (raises ``product_not_found``)."""
+        with self._connect() as conn:
+            data = json.loads(self._product_row(conn, product_id)["data"])
+        urls = [data.get("thumbnail"), *data.get("images", [])]
+        return list(dict.fromkeys(url for url in urls if url))
+
     def captions(self) -> dict[str, dict[str, Any]]:
         """The caption every product shows now (``name``, ``description``, ``tags``), by product id."""
         with self._connect() as conn:
@@ -189,8 +196,13 @@ class SellerService:
 
     def propose_caption(self, product_id: str, reason: str, *, actor: str, name: str | None = None,
                         description: str | None = None, tags: list[str] | None = None,
-                        revision_of: str | None = None) -> dict[str, Any]:
-        """Create a ``pending`` proposal. The product does not change."""
+                        revision_of: str | None = None, inputs: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Create a ``pending`` proposal. The product does not change.
+
+        ``inputs`` records what the author used besides the caption and product
+        data, e.g. ``{"images": [ImageRef as dict, ...]}`` for the images the
+        model saw (C3b); it is stored as given and shown with the proposal.
+        """
         if not reason.strip():
             raise SellerError("missing_reason", "reason is required")
         now = self._clock()
@@ -202,8 +214,9 @@ class SellerService:
                 previous = self._revisable(conn, parse_proposal_id(revision_of), product_id)
             cur = conn.execute(
                 "INSERT INTO caption_proposals (product_id, status, changes, reason, base_caption_version, "
-                "revision_of, created_at, created_by) VALUES (?, 'pending', ?, ?, ?, ?, ?, ?)",
-                (product_id, dumps(changes), reason.strip(), caption_version(product), previous, now, actor))
+                "revision_of, created_at, created_by, inputs) VALUES (?, 'pending', ?, ?, ?, ?, ?, ?, ?)",
+                (product_id, dumps(changes), reason.strip(), caption_version(product), previous, now, actor,
+                 dumps(inputs) if inputs else None))
             self._audit(conn, now, actor, "proposed", product_id, cur.lastrowid,
                         {"changes": changes, "reason": reason.strip(),
                          "revision_of": format_proposal_id(previous) if previous else None})
@@ -383,6 +396,7 @@ class SellerService:
             "feedback": row["feedback"],
             "applied_version_id": row["applied_version_id"],
             "reverted_at": row["reverted_at"], "reverted_by": row["reverted_by"],
+            "inputs": json.loads(row["inputs"]) if row["inputs"] else None,
         }
 
 

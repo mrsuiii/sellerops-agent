@@ -474,7 +474,9 @@ DoD: caption tidak pernah berubah tanpa approval; revert terbukti lewat test.
 
 ### Session C3b — Gambar produk sebagai input caption (multimodal)
 
-Status: [ ] — ditambahkan 27 Nov 2026, sesudah C3 tuntas dan sebelum A5.
+Status: [~] — ditambahkan 27 Nov 2026, sesudah C3 tuntas dan sebelum A5.
+Bagian assistant selesai 27 Nov (`seller/images.py`, `supports_vision`,
+`inputs` di proposal, gambar di `/seller`); tinggal desain + node (Nigka).
 
 Tujuan: model melihat foto produk saat menulis atau merevisi caption, supaya
 caption bisa menyebut hal yang terlihat (warna, motif, potongan) tanpa
@@ -509,15 +511,25 @@ Rancangan (dari diskusi 21 Nov):
   dilihat]`); state tetap utuh.
 
 Langkah:
-- [ ] Pipeline gambar backend: unduh, batasi host, resize, hash, cache
-  (assistant, mekanis; dependency baru `Pillow`).
-- [ ] `supports_vision` + mode teks saja sebagai cadangan (assistant).
+- [x] Pipeline gambar backend (`seller/images.py`): `ImageStore` Protocol +
+  `LocalImageStore` (`var/images/stores/<store_id>/images/<sha256>.jpg`,
+  `SELLEROPS_IMAGES_DIR`), hanya https ke host katalog (redirect juga dicek),
+  batas 10 MB / 40 MP, flatten ke putih, sisi terpanjang 1024 px, JPEG,
+  cache per URL. `ProductImages.load(urls, limit)` melewati gambar gagal
+  (log) supaya pemanggil lanjut dengan teks; `to_content_block` membuat
+  block standar LangChain. `service.product_images(pid)` = URL katalog
+  (thumbnail 300 px dulu, lalu `images` 1000 px). Pillow di extra `[agent]`.
+- [x] `supports_vision(model)` di `harness/models.py` (Claude: ya;
+  openai_compatible: hanya bila `SELLEROPS_LLM_VISION=1`; fallback chain:
+  semua model harus bisa).
 - [ ] Desain (Nigka): gambar mana yang dikirim (thumbnail saja atau semua
   `images`, batas jumlah), kapan (draft pertama oleh chat agent lewat tool
   vs. hanya di `draft_revision`), dan bagaimana prompt memisahkan "terlihat"
   vs "fakta data".
 - [ ] Perubahan node `draft_revision` / tool chat agent (Nigka; agentic).
-- [ ] Jejak gambar di proposal + tampil di halaman `/seller` (assistant).
+- [x] Jejak gambar di proposal: `propose_caption(..., inputs={"images":
+  [asdict(ref), ...]})` (kolom `inputs`, migrasi untuk DB lama), tampil di
+  `/seller` lewat `GET /api/seller/images/{sha256}` (assistant).
 - [ ] Test: fake model menerima content block gambar; host di luar daftar
   ditolak; cache hit tidak mengunduh ulang; model tanpa vision tetap jalan.
   Satu test live: caption revisi menyebut warna yang benar.

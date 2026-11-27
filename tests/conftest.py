@@ -26,6 +26,7 @@ import tempfile
 _TEST_VAR = Path(tempfile.mkdtemp(prefix="sellerops-test-"))
 os.environ["SELLEROPS_SELLER_DB"] = str(_TEST_VAR / "seller.sqlite")
 os.environ["SELLEROPS_APPROVALS_DB"] = str(_TEST_VAR / "approvals.sqlite")
+os.environ["SELLEROPS_IMAGES_DIR"] = str(_TEST_VAR / "images")
 
 
 # A seller backend on a fresh SQLite file per test (tests/seller, tests/workflows).

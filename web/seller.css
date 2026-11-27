@@ -40,6 +40,12 @@
 .reason { margin: 16px 0; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--bg); font-size: 14px; }
 .reason b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 4px; }
 
+.seen { margin: 0 0 16px; }
+.seen b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 6px; }
+.seen-list { display: flex; gap: 10px; flex-wrap: wrap; }
+.seen-list a { display: flex; flex-direction: column; gap: 4px; text-decoration: none; font-size: 11px; color: var(--muted); }
+.seen-list img { width: 96px; height: 96px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+
 .change { margin-top: 18px; }
 .change h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; margin: 0 0 8px; display: flex; gap: 8px; align-items: center; }
 .change h3 small { text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 400; }
