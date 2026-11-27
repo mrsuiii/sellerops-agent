@@ -7,7 +7,8 @@ Run from the project directory:
 Then open http://127.0.0.1:8000 for the shop and http://127.0.0.1:8000/docs
 for the API. The seller backend (analytics + caption approval, ``/api/seller``)
 is mounted from ``sellerops.seller.api``; its SQLite database is created and
-seeded from the demo data on first start (``SELLEROPS_SELLER_DB``). The frontend in ``web/`` is plain HTML/JS served by this app.
+seeded from the demo data on first start (``SELLEROPS_SELLER_DB``). The React app
+in ``web/`` (built to ``web/dist``) is served by this app too (``store/frontend.py``).
 Configuration comes from ``SELLEROPS_*`` environment variables
 (see ``sellerops.settings``).
 """
@@ -27,8 +28,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from ..logging_config import configure_logging
@@ -36,6 +36,7 @@ from ..seller import SellerService
 from ..seller import api as seller_api
 from ..settings import get_settings
 from .catalog import Catalog, ProductFilter, SortKey, load_catalog, summary
+from .frontend import install_frontend
 
 logger = logging.getLogger(__name__)
 
@@ -206,15 +207,5 @@ def recommend(seller: seller_api.Service, body: RecommendRequest) -> dict[str, A
     return {"items": items}
 
 
-if settings.web_dir.is_dir():
-    app.mount("/static", StaticFiles(directory=settings.web_dir), name="static")
-
-    @app.get("/", include_in_schema=False)
-    def index() -> FileResponse:
-        return FileResponse(settings.web_dir / "index.html")
-
-    @app.get("/seller", include_in_schema=False)
-    def seller_page() -> FileResponse:
-        return FileResponse(settings.web_dir / "seller.html")
-else:
-    logger.warning("web dir not found; serving API only", extra={"web_dir": str(settings.web_dir)})
+if not install_frontend(app, settings.web_dir):
+    logger.warning("web build not found; serving API only (run: make web-build)", extra={"web_dir": str(settings.web_dir)})

@@ -125,7 +125,7 @@ Detail lengkap dan langkah berikutnya: **`HANDOFF.md`**.
   approval C3 (`workflows/approval/`) selesai 21 Nov, ditulis assistant atas
   permintaan eksplisit Nigka; di API lewat `workflows/approval/api.py`
   (`/caption-proposals/{id}/approval`, 27 Nov).
-- **Kala Studio** (PR #2): FastAPI + HTML/CSS/JS, katalog DummyJSON dalam IDR,
+- **Kala Studio** (PR #2; 27 Nov diganti React + TypeScript + Vite di `web/`, dilayani `store/frontend.py` dari `web/dist`): FastAPI + React, katalog DummyJSON dalam IDR,
   recommender BM25 di `POST /api/recommend`; keranjang masih di browser
   (`localStorage`). Belum ada tool agent.
 - **Production-readiness** (PR #3, #4): `pyproject.toml`, Dockerfile, settings
@@ -149,9 +149,10 @@ Detail lengkap dan langkah berikutnya: **`HANDOFF.md`**.
 ## Perintah umum
 
 ```bash
-make test    # pytest
-make lint    # ruff
-make store   # Kala Studio di http://127.0.0.1:8000 (docs di /docs)
+make test    # build web, pytest, vitest, Playwright e2e (Chrome terpasang)
+make lint    # ruff + typecheck + ESLint web
+make store   # Kala Studio di http://127.0.0.1:8000 (API di /docs, app React di / dan /seller)
+make web-dev # UI dev di :5173 (jalankan make store-fake di terminal lain)
 uv sync --extra agent   # atau: pip install -e ".[agent]"
 ```
 

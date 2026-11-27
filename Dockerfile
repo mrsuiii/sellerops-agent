@@ -1,6 +1,7 @@
 # Two images from one Dockerfile, built with --target:
 #
-#   store  Kala Studio store + seller page + caption approval agent (production, Fly.io).
+#   store  Kala Studio store (React app built in the web-build stage) + seller page + caption
+#          approval agent (production, Fly.io).
 #          docker build --target store -t sellerops-store .
 #          docker run --rm -p 8000:8000 -e SELLEROPS_APPROVAL_FAKE=1 sellerops-store   # free fake model
 #          docker run --rm -p 8000:8000 -e ANTHROPIC_API_KEY sellerops-store        # real agent
@@ -16,6 +17,16 @@
 # (SELLEROPS_PROJECT_ROOT=/app has none). API keys come only from the runtime
 # environment (fly secrets, --env-file). The eval image does not ship the web frontend
 # or the store server.
+
+# ---------------------------------------------------------------- web (build only; nothing from it ships but web/dist)
+FROM node:22-alpine AS web-build
+
+WORKDIR /web
+# Lockfile first (cached layer); npm ci fails if package.json and the lock disagree.
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
 
 # ---------------------------------------------------------------- eval
 FROM python:3.12-slim AS eval
@@ -82,7 +93,7 @@ RUN uv sync --frozen --no-editable --extra store --extra agent && rm -rf src
 # them across restarts (the public demo does not, so it starts fresh after idling).
 COPY data/store ./data/store
 COPY data/seller_sim ./data/seller_sim
-COPY web ./web
+COPY --from=web-build /web/dist ./web/dist
 
 RUN useradd --create-home --uid 10001 app && mkdir -p var && chown -R app:app /app
 USER app
