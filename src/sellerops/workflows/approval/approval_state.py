@@ -11,15 +11,21 @@ from typing import Annotated, Literal, TypedDict
 
 
 class ApprovalState(TypedDict, total=False):
+    request_id: str            # C3b: caption request yang memulai thread ini (draft pertama oleh graph)
+    instruction: str           # permintaan seller di caption request
     product_id: str
     fields: list[str]          # field yang boleh diubah: awalnya field usulan pertama, + add_fields saat reject
-    proposal_id: str           # proposal pending saat ini
+    proposal_id: str           # proposal pending saat ini (belum ada sebelum draft pertama dari request)
     decision: Literal["approve", "reject", "cancel"] | None
     feedback: str              # alasan reject terakhir ("" = seller tidak memberi alasan)
     decided_by: str            # "seller:<user>" dari resume
     feedback_history: Annotated[list[str], operator.add]  # semua alasan reject di rantai ini, untuk prompt revisi
     rejections: int            # salinan rejections_in_chain dari service (service = kebenaran)
-    draft: dict | None         # hasil draft_revision sebelum disubmit
+    draft: dict | None         # hasil draft_caption sebelum disubmit
+    draft_inputs: dict | None  # yang dilihat model untuk draft itu: {"images": [ImageRef], "seller_facts": {...}}
+    questions: list[dict] | None  # AskSeller dari model, menunggu ask_seller
+    asked_this_version: bool   # sudah bertanya untuk versi ini (maks satu putaran per versi)
+    seller_answers: dict       # jawaban terakhir (juga disimpan runner sebagai product_facts)
     draft_error: str | None    # error validasi dari service, untuk percobaan berikutnya
     draft_attempts: int
     stop_reason: Literal["applied", "stale", "cancelled", "max_rejections", "revision_failed"] | None

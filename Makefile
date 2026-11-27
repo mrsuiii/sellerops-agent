@@ -1,4 +1,4 @@
-.PHONY: install lint fix test test-live try-approval studio studio-fake store store-fake docker sim eval-smoke eval docker-eval-build docker-eval-smoke docker-eval
+.PHONY: install lint fix test test-live try-approval studio studio-fake store store-fake docker docker-demo deploy sim eval-smoke eval docker-eval-build docker-eval-smoke docker-eval
 
 install:        ## Core + store + eval + dev tools (no torch)
 	pip install -e ".[dev]"
@@ -41,6 +41,13 @@ store-fake:     ## Same, with a free fake model drafting the caption revisions
 
 docker:         ## Production store image on :8000
 	docker build --target store -t sellerops-store . && docker run --rm -p 8000:8000 sellerops-store
+
+docker-demo:    ## The public demo locally (demo mode, free fake model) on :8000
+	docker build --target store -t sellerops-store . && \
+	docker run --rm -p 8000:8000 -e SELLEROPS_DEMO_MODE=1 -e SELLEROPS_APPROVAL_FAKE=1 sellerops-store
+
+deploy:         ## Lint, test, then deploy the demo to Fly.io (one machine; see docs/deploy.md)
+	$(MAKE) lint test && fly deploy --ha=false
 
 docker-eval-build:  ## Eval image (secrets only from .env.eval at run time)
 	docker compose build --build-arg GIT_COMMIT=$$(git rev-parse --short HEAD) eval

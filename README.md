@@ -13,6 +13,31 @@ Direction: a **seller agent** (sales analysis, restock, review insight, caption
 fixes with human approval) first, then a **buyer agent** (search, recommend,
 product detail, cart). The earlier Qwen 0.5B fine-tuning track is archived.
 
+## Live demo
+
+**Demo:** `https://<your-app-name>.fly.dev/seller` (deploy: [docs/deploy.md](docs/deploy.md)).
+The shop is at `/`, the API docs at `/docs`.
+
+What to try on the seller page:
+
+1. **Review an agent proposal.** Two are waiting. You see a word-level diff, then
+   approve it (the shop shows the new caption at once and you can revert), reject it
+   with a reason (the agent drafts a revision within the allowed fields), or cancel.
+2. **Ask the agent for a caption from scratch** ("+ Caption baru"). The agent looks
+   at the product data and a product photo. When the caption needs something
+   neither of them shows (material, fit, care), it asks you first instead of
+   making it up. Your answers become product facts it remembers next time, and
+   "I don't know" leads to a caption that says the data is missing.
+3. **Check the audit trail.** Every proposal records the photo the model saw (by
+   SHA-256) and the seller facts it used, and the audit log lists every step.
+
+How it is built: a LangGraph `StateGraph` written node by node, without
+`create_agent`. It uses `interrupt()` for the seller's decision and for the
+agent's questions, a SQLite checkpointer so threads survive restarts, and a
+`RetryPolicy` on the one LLM node. The service layer is the source of truth,
+with an atomic apply, stale detection and append-only versions and audit log.
+Claude Haiku runs behind a per-visitor budget.
+
 ## Repository layout
 
 ```text
@@ -95,6 +120,10 @@ Secrets and settings come from environment variables; see
 | `SELLEROPS_APPROVALS_DB` | checkpoints of the caption approval workflow (default `var/approvals.sqlite`) |
 | `SELLEROPS_LOG_LEVEL`, `SELLEROPS_LOG_FORMAT` | `INFO`/`DEBUG`/…, `text` or `json` |
 | `SELLEROPS_CORS_ORIGINS` | comma-separated origins allowed to call the store API |
+| `SELLEROPS_DEMO_MODE` | `1` for the public demo: LLM budget on, demo proposals seeded at startup |
+| `SELLEROPS_DEMO_LLM_PER_CLIENT_HOUR`, `SELLEROPS_DEMO_LLM_PER_DAY` | demo LLM budget (defaults 10 per visitor per hour, 200 per day) |
+| `SELLEROPS_CLIENT_IP_HEADER` | header the proxy sets to the client IP (`Fly-Client-IP` on Fly.io) |
+| `SELLEROPS_APPROVAL_FAKE` | `1`: a free fake model drafts captions (`make store-fake`) |
 
 Code reads these through `sellerops.settings.get_settings()`; a `.env` in the
 project root is loaded automatically (real environment variables win).
@@ -129,6 +158,12 @@ pending ──approve──► applied ──revert──► reverted      (appr
   `POST …/approval/retry` re-runs a failed step. Graph checkpoints live in
   `var/approvals.sqlite` (`SELLEROPS_APPROVALS_DB`). The plain approve / reject /
   cancel routes stay as service calls without the graph.
+- C3b: the draft sees a product photo (fetched by the backend from the catalog host,
+  shrunk, stored by SHA-256; the model never gets a URL) when the model has vision.
+  `POST /caption-requests` asks for a caption from scratch. The graph may stop with a
+  question (`waiting_for: "answer"`), answered by `POST …/approval/answer`. Answers are
+  stored as append-only product facts (`/products/{id}/facts`), and each proposal
+  records `inputs.images` and `inputs.seller_facts`.
 - One store today, but ready for more: each `SellerService` is bound to a `store_id`
   (the database records its owner and refuses another), callers get a service only via
   `SellerServices.for_store(store_id)` (`seller/registry.py`), and the API decides the
@@ -141,11 +176,13 @@ One `Dockerfile`, two targets, so evaluation never shares an environment with pr
 
 | Target | Image | Contains | Secrets |
 | --- | --- | --- | --- |
-| `store` (default) | `sellerops-store` | store + seller API, catalog, seller demo data, web frontend (`[store]` extra); seller DB on the `seller-db` volume | none |
+| `store` (default) | `sellerops-store` | store + seller API + caption approval agent, catalog, seller demo data, web frontend (`[store,agent]`, pinned by `uv.lock`); `var/` on the `seller-db` volume | `ANTHROPIC_API_KEY` from the runtime env (Fly secret) |
 | `eval` | `sellerops-eval` | agent + eval harness, simulator data and tasks (`[eval]` extra, pinned by `uv.lock`) | only from `.env.eval` at run time |
 
 ```bash
 make docker                 # store on :8000 (docker compose up store also works)
+make docker-demo            # the public demo locally: demo mode + free fake model
+make deploy                 # lint, test, fly deploy --ha=false (docs/deploy.md)
 
 cp .env.eval.example .env.eval   # fill in eval-only keys; never committed
 make docker-eval-smoke      # dev tasks x1, scripted user
@@ -162,6 +199,7 @@ Both images run as a non-root user; the store exposes a health check at `/api/he
 
 - [src/sellerops/evaluation/README.md](src/sellerops/evaluation/README.md): seller simulator, planted scenarios, multi-turn eval
 - [web/README.md](web/README.md): Kala Studio store and API
+- [docs/deploy.md](docs/deploy.md): public demo on Fly.io (budget, reset, secrets)
 - [PLAN.md](PLAN.md): learning plan and milestones
 - The Qwen 0.5B track (code, weights, notebooks, results, old simulator) was removed on 17 Nov 2026;
   artifacts live in `../../archive/sellerops-sft-0.5b/` and the code in git history.
@@ -170,5 +208,6 @@ Both images run as a non-root user; the store exposes a health check at `/api/he
 
 - Seller simulator (C1) and multi-turn eval scaffolding are in place; 19 tasks (10 dev, 9 frozen test).
 - Seller backend (C2 service + C3 caption approval backend) done: `src/sellerops/seller/`, `/api/seller`.
+- Caption approval graph (C3) and C3b (product photos, agent asks the seller, product-fact memory) done: `src/sellerops/workflows/approval/`, seller page `/seller`.
 - Agent graph (A1) done; seller tools in `harness/tools/seller.py`; eval CLI `scripts/evaluate_seller.py` (A3, first smoke run 8/10 dev tasks).
 - No CI: run `make lint test` (or `pre-commit install` once) before pushing.

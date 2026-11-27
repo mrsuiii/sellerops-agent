@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -44,11 +45,19 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command, StateSnapshot
 
 from sellerops.seller import SellerError, SellerService
+from sellerops.seller.images import ProductImages
 from sellerops.workflows.approval.approval_graph import DecisionIn, build_approval_graph
 from sellerops.workflows.approval.approval_state import thread_config
 from sellerops.workflows.approval.questions import AnswerIn
 
 logger = logging.getLogger(__name__)
+
+Charge = Callable[[], None]   # called right before a step that runs the LLM (demo budget); may raise
+
+
+def _free() -> None:
+    return None
+
 
 ViewState = Literal["waiting", "done", "error"]
 
@@ -66,9 +75,10 @@ class ApprovalRunner:
     """The approval graph of one store, behind proposal and request ids."""
 
     def __init__(self, service: SellerService, model: BaseChatModel, checkpointer: BaseCheckpointSaver, *,
-                 graph: CompiledStateGraph | None = None) -> None:
+                 images: ProductImages | None = None, graph: CompiledStateGraph | None = None) -> None:
         self.service = service
-        self.graph = graph if graph is not None else build_approval_graph(service, model, checkpointer=checkpointer)
+        self.graph = graph if graph is not None else build_approval_graph(
+            service, model, checkpointer=checkpointer, images=images)
         self._locks: dict[str, threading.Lock] = {}
         self._locks_guard = threading.Lock()
 
@@ -82,13 +92,15 @@ class ApprovalRunner:
             return self._view(thread)
 
     def start_request(self, product_id: str, *, user: str, fields: list[str] | None = None,
-                      instruction: str = "") -> dict[str, Any]:
+                      instruction: str = "", charge: Charge = _free) -> dict[str, Any]:
         """Create a caption request and run the graph until it waits (question or first proposal)."""
+        self.service.analytics().product(product_id)   # product_not_found before anything is charged
+        charge()
         request = self.service.request_caption(product_id, actor=f"seller:{user}", fields=fields,
                                                instruction=instruction)
         return self.status(request["request_id"])
 
-    def decide(self, proposal_id: str, decision: DecisionIn, *, user: str) -> dict[str, Any]:
+    def decide(self, proposal_id: str, decision: DecisionIn, *, user: str, charge: Charge = _free) -> dict[str, Any]:
         """Resume the graph with the seller's decision (``Command(resume=...)``)."""
         thread = self.thread_of(proposal_id)
         with self._lock(thread):
@@ -98,10 +110,12 @@ class ApprovalRunner:
             if waiting_on != proposal_id:
                 raise SellerError("stale_decision",
                                   f"{proposal_id} is not the version waiting for a decision; decide on {waiting_on}")
+            if decision.decision == "reject":   # a rejection drafts a revision
+                charge()
             self._run(thread, Command(resume={**decision.model_dump(), "user": user}))
             return self._view(thread)
 
-    def answer(self, any_id: str, answer: AnswerIn, *, user: str) -> dict[str, Any]:
+    def answer(self, any_id: str, answer: AnswerIn, *, user: str, charge: Charge = _free) -> dict[str, Any]:
         """Store the seller's answers as product facts, then resume the graph with them."""
         thread = self.thread_of(any_id)
         with self._lock(thread):
@@ -109,18 +123,20 @@ class ApprovalRunner:
             asked = [q["key"] for q in view["request"]["questions"]]
             if set(answer.answers) != set(asked):
                 raise SellerError("invalid_answer", f"answer exactly the questions asked: {asked}")
+            charge()
             product_id = view["request"].get("product_id") or view["product_id"]
             source = view["request"].get("request_id") or view["request"].get("proposal_id") or any_id
             self.service.remember_facts(product_id, answer.answers, actor=f"seller:{user}", source=source)
             self._run(thread, Command(resume={"answers": answer.answers, "user": user}))
             return self._view(thread)
 
-    def retry(self, any_id: str) -> dict[str, Any]:
+    def retry(self, any_id: str, *, charge: Charge = _free) -> dict[str, Any]:
         """Run the node that failed again (``invoke(None)`` continues from the last checkpoint)."""
         thread = self.thread_of(any_id)
         with self._lock(thread):
             if self._view(thread)["state"] != "error":
                 raise SellerError("approval_not_failed", f"the approval of {any_id} has nothing to retry")
+            charge()
             self._run(thread, None)
             return self._view(thread)
 

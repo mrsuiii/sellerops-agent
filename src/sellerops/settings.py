@@ -85,6 +85,10 @@ class Settings:
     llm_base_url: str  # only used by the openai_compatible provider
     llm_fallback_models: tuple[str, ...]  # same provider; tried in order when the primary fails
     llm_vision: bool  # openai_compatible only: the configured model reads images (Claude always does)
+    demo_mode: bool  # public demo: limit LLM steps (workflows/approval/budget.py)
+    demo_llm_per_client_hour: int
+    demo_llm_per_day: int
+    client_ip_header: str | None  # header the proxy puts the client IP in (Fly: Fly-Client-IP)
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -110,6 +114,10 @@ class Settings:
             llm_base_url=os.environ.get("LLM_BASE_URL", "").strip() or DEFAULT_LLM_BASE_URL,
             llm_vision=os.environ.get("SELLEROPS_LLM_VISION", "").strip() == "1",
             llm_fallback_models=_env_list("SELLEROPS_LLM_FALLBACK_MODELS"),
+            demo_mode=os.environ.get("SELLEROPS_DEMO_MODE", "").strip() == "1",
+            demo_llm_per_client_hour=int(os.environ.get("SELLEROPS_DEMO_LLM_PER_CLIENT_HOUR") or 10),
+            demo_llm_per_day=int(os.environ.get("SELLEROPS_DEMO_LLM_PER_DAY") or 200),
+            client_ip_header=os.environ.get("SELLEROPS_CLIENT_IP_HEADER", "").strip() or None,
         )
 
 

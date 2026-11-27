@@ -106,3 +106,12 @@ def test_seller_api_requests_and_facts(service) -> None:
         assert missing.status_code == 404 and missing.json()["code"] == "request_not_found"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_demo_seed_only_fills_an_untouched_store(service) -> None:
+    from sellerops.seller.demo import seed_demo
+
+    assert seed_demo(service) == 2
+    pending = service.list_proposals(status="pending")
+    assert {p["product_id"] for p in pending} == {"FS180", "FS083"} and all(p["created_by"] == "agent" for p in pending)
+    assert seed_demo(service) == 0                 # never twice, never on a store with work in it

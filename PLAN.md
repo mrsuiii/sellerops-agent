@@ -474,9 +474,10 @@ DoD: caption tidak pernah berubah tanpa approval; revert terbukti lewat test.
 
 ### Session C3b — Gambar produk sebagai input caption (multimodal)
 
-Status: [~] — ditambahkan 27 Nov 2026, sesudah C3 tuntas dan sebelum A5.
-Bagian assistant selesai 27 Nov (`seller/images.py`, `supports_vision`,
-`inputs` di proposal, gambar di `/seller`); tinggal desain + node (Nigka).
+Status: [x] — selesai 27 Nov 2026. Pipeline gambar dan backend oleh
+assistant; graph dan prompt juga ditulis assistant atas permintaan eksplisit
+Nigka (27 Nov: "segera selesaikan, mau di-deploy sebagai portofolio"). Sisa:
+satu run live berbayar (`tests/integration/test_caption_c3b_live.py`).
 
 Tujuan: model melihat foto produk saat menulis atau merevisi caption, supaya
 caption bisa menyebut hal yang terlihat (warna, motif, potongan) tanpa
@@ -522,17 +523,19 @@ Langkah:
 - [x] `supports_vision(model)` di `harness/models.py` (Claude: ya;
   openai_compatible: hanya bila `SELLEROPS_LLM_VISION=1`; fallback chain:
   semua model harus bisa).
-- [ ] Desain (Nigka): gambar mana yang dikirim (thumbnail saja atau semua
-  `images`, batas jumlah), kapan (draft pertama oleh chat agent lewat tool
-  vs. hanya di `draft_revision`), dan bagaimana prompt memisahkan "terlihat"
-  vs "fakta data".
-- [ ] Perubahan node `draft_revision` / tool chat agent (Nigka; agentic).
+- [x] Desain: satu foto penuh 1000 px (`IMAGE_LIMIT = 1`, thumbnail 300 px
+  hanya kalau tidak ada foto lain), di setiap draft (pertama dan revisi)
+  oleh graph approval; chat agent tidak mengirim gambar (tetap teks).
+- [x] Node `draft_caption` (pengganti `draft_revision`): gambar dimuat di dalam
+  node setiap kali jalan, state hanya menyimpan ref (`draft_inputs`).
 - [x] Jejak gambar di proposal: `propose_caption(..., inputs={"images":
   [asdict(ref), ...]})` (kolom `inputs`, migrasi untuk DB lama), tampil di
   `/seller` lewat `GET /api/seller/images/{sha256}` (assistant).
-- [ ] Test: fake model menerima content block gambar; host di luar daftar
-  ditolak; cache hit tidak mengunduh ulang; model tanpa vision tetap jalan.
-  Satu test live: caption revisi menyebut warna yang benar.
+- [x] Test: fake model menerima content block gambar; host di luar daftar
+  ditolak; cache hit tidak mengunduh ulang; model tanpa vision tetap jalan
+  (`tests/workflows/test_caption_c3b.py`, `tests/seller/test_images.py`).
+- [ ] Test live (berbayar, perlu persetujuan): agent bertanya soal bahan lalu
+  memakainya; foto → deskripsi menyebut putih / polkadot / pita.
 
 DoD: revisi caption memakai foto produk lewat backend (tanpa URL ke model),
 hash gambar tercatat di proposal, dan alur tetap jalan untuk model tanpa
@@ -571,15 +574,29 @@ Langkah:
   `.../approval/answer` untuk request dan proposal. Halaman `/seller`:
   form "Minta agent menulis", form pertanyaan, panel fakta.
   Test dengan graph stub (`tests/workflows/test_caption_questions.py`).
-- [ ] Graph (Nigka): input `{"request_id"}` di `load`; node draft pertama;
-  output model `CaptionDraft | AskSeller`; node `ask_seller` dengan
-  `interrupt(question_request(...))`; fakta seller (+ yang `None`) masuk
-  prompt; `submit` meneruskan `request_id` dan `inputs.seller_facts`. Kapan
-  boleh bertanya (hanya key yang belum ada di `product_facts`?), dan batas
-  per thread.
-- [ ] Prompt (Nigka): tiga sumber, yaitu data produk, foto, dan fakta seller;
-  `None` → sebut bahwa data tambahan dibutuhkan. Hapus contoh "material,
-  size" di aturan sekarang (data produk tidak punya field itu).
+- [x] Graph (assistant, atas permintaan): `load` menerima `{"request_id"}`;
+  `draft_caption` (draft pertama atau revisi) memanggil model dengan tool
+  `CaptionDraft | AskSeller` (`tool_choice="any"`); `ask_seller` =
+  `interrupt(question_request(...))`; `submit_draft` meneruskan `request_id`
+  (draft pertama) atau `revision_of`, plus `inputs`. Aturan: bertanya maks
+  satu putaran per versi (`asked_this_version`, di-reset saat reject), hanya
+  key yang belum ada di `product_facts` (jawaban "tidak tahu" juga dihitung
+  ada), maks 3 pertanyaan.
+- [x] Prompt: tiga sumber (data produk, foto, fakta seller), foto hanya untuk
+  yang terlihat, `null` → caption menyebut data tambahan dibutuhkan di
+  `reason`; `reason` dalam Bahasa Indonesia.
+
+### Deploy demo publik (27 Nov 2026)
+
+- [x] Image `store` memasang `[store,agent]` lewat `uv.lock`; `fly.toml`
+  (satu mesin, tanpa volume, region `sin`); `docs/deploy.md`.
+- [x] Mode demo (`SELLEROPS_DEMO_MODE=1`): budget LLM per pengunjung per jam
+  dan global per hari (`workflows/approval/budget.py`, HTTP 429), dipotong
+  hanya sesaat sebelum LLM jalan; dua usulan contoh (`seller/demo.py`);
+  banner sisa kuota di `/seller`.
+- [ ] Nigka: `fly launch` + `fly secrets set ANTHROPIC_API_KEY` + `fly deploy
+  --ha=false`; isi link demo di README; batas belanja bulanan di Anthropic
+  Console.
 
 ### Session C4 — KPI dan laporan mingguan (workflow)
 

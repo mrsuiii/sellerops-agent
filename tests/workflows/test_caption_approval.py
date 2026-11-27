@@ -122,7 +122,7 @@ def test_revision_prompt_carries_every_rejected_version_and_reason(service) -> N
     prompt = model.calls[-1][-1].content
     assert "Clearer." in prompt and "terlalu panjang" in prompt       # versi pertama + alasannya
     assert "Short." in prompt and "(no reason given)" in prompt       # versi kedua, tanpa alasan
-    assert "Fields you may change: description" in prompt
+    assert "Fields you may write: description" in prompt
     assert graph.get_state(config).values["feedback_history"] == ["terlalu panjang", "(no reason given)"]
 
 

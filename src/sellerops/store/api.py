@@ -52,6 +52,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     catalog = load_catalog()
     # Opens (and on first start seeds) the seller database.
     seller = seller_api.default_services().for_store(seller_api.current_store_id())
+    if get_settings().demo_mode:
+        from ..seller.demo import seed_demo
+
+        seed_demo(seller)
     logger.info("store started", extra={"products": len(catalog.products), "version": APP_VERSION,
                                         "seller_db": str(seller.db_path),
                                         "store_id": seller.store_id})

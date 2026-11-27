@@ -114,7 +114,7 @@ def test_failed_step_can_be_retried(make_client, service) -> None:
     client = make_client(RuntimeError("model down"), DRAFT("Second try."))
     pid = propose(service)
     failed = client.post(url(pid, "decision"), headers=HEADERS, json={"decision": "reject", "feedback": "x"}).json()
-    assert failed["state"] == "error" and "draft_revision" in failed["error"] and "model down" not in failed["error"]
+    assert failed["state"] == "error" and "draft_caption" in failed["error"] and "model down" not in failed["error"]
     assert service.get_proposal(pid)["status"] == "rejected"   # the rejection was recorded before the LLM step
 
     nothing = client.post(url(pid, "decision"), headers=HEADERS, json={"decision": "approve"})

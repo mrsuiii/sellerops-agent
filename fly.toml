@@ -1,0 +1,47 @@
+# Fly.io: the public demo (store + seller page + caption approval agent). Guide: docs/deploy.md
+#
+#   fly launch --no-deploy --copy-config --name <your-app-name>   # once; keeps this file
+#   fly secrets set ANTHROPIC_API_KEY=...                         # typed by you, never committed
+#   fly deploy --ha=false                                         # ONE machine (see below)
+#
+# One machine on purpose: SQLite, the approval locks and the demo LLM budget live in
+# the process. No volume on purpose: the demo starts fresh whenever the machine
+# stops after idling (root filesystem is reset), so visitors cannot break it for good.
+
+app = "sellerops-kala"          # must be unique on Fly: change it (or pass --name to fly launch)
+primary_region = "sin"          # Singapore, closest to Indonesian visitors
+
+[build]
+  dockerfile = "Dockerfile"
+  build-target = "store"
+
+[env]
+  SELLEROPS_DEMO_MODE = "1"                      # LLM budget on, demo proposals seeded
+  SELLEROPS_DEMO_LLM_PER_CLIENT_HOUR = "10"
+  SELLEROPS_DEMO_LLM_PER_DAY = "200"
+  SELLEROPS_CLIENT_IP_HEADER = "Fly-Client-IP"   # Fly's proxy sets it; budget counts per visitor
+  SELLEROPS_LLM_MODEL = "claude-haiku-5-5"
+  SELLEROPS_LOG_LEVEL = "INFO"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 20
+    hard_limit = 40
+
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "30s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

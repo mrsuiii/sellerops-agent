@@ -81,6 +81,7 @@ ERROR_STATUS = {
     "approval_not_failed": 409,
     "not_waiting_for_answer": 409,
     "not_waiting_for_decision": 409,
+    "llm_budget_exhausted": 429,
 }  # every other code is a bad request (422)
 
 router = APIRouter(prefix="/api/seller", tags=["seller"])

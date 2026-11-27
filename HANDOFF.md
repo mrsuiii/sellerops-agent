@@ -59,22 +59,24 @@ Branch `feat/c2-c3-backend` (dari `feat/seller-agents`; belum di-push).
   revert, audit log. Toko kini menampilkan caption dari DB seller
   (`shop_catalog` di `store/api.py`, indeks BM25 dibangun ulang hanya saat
   caption berubah). `make store-fake` = tanpa biaya LLM.
-- C3b bagian assistant (27 Nov, branch `feat/c3b-images`): pipeline gambar
-  `seller/images.py`, `supports_vision`, `inputs` di proposal, gambar yang
-  dilihat model di `/seller`. Bagian 2 (agent bertanya ke seller): caption
-  request `CR-…`, memori `product_facts`, kontrak `workflows/approval/questions.py`,
-  runner/API `waiting_for` + `.../approval/answer`, UI pertanyaan di `/seller`.
-  Sisa (Nigka): graph (input `request_id`, draft pertama, `AskSeller`,
-  `ask_seller` interrupt, gambar di draft) dan prompt tiga sumber. Sampai
-  graph mendukung `request_id`, `POST /caption-requests` berakhir
-  `state="error"` di `load` (lihat `PLAN.md` C3b bagian 2).
-- 285 test lolos (+4 live di-skip), ruff bersih.
+- C3b selesai (27 Nov, branch `feat/c3b-images`; graph ditulis assistant atas
+  permintaan Nigka untuk deploy cepat): foto produk ke model
+  (`seller/images.py`, satu foto 1000 px, hanya bila model punya vision),
+  caption request `CR-…` (draft pertama oleh graph), agent boleh bertanya
+  (`AskSeller` → `ask_seller` interrupt, maks satu putaran per versi), jawaban
+  jadi memori `product_facts`, `inputs.images` / `inputs.seller_facts` di
+  proposal. Node `draft_revision` / `submit_revision` diganti
+  `draft_caption` / `submit_draft` (tutorial C3 di `docs/` masih memakai nama
+  lama).
+- Deploy demo: `fly.toml`, `docs/deploy.md`, mode demo (budget LLM, usulan
+  contoh, banner). Image `store` sudah dibangun dan di-smoke-test lokal.
+- 299 test lolos (+6 live di-skip), ruff bersih.
 
-Berikutnya (27 Nov; PR #7 sudah di-merge ke `main`): target dekat sampai
-A5. (1) coba reject → revisi dengan model asli (`make test-live` /
-`make try-approval`; berbayar), (2) **C3b** gambar produk sebagai input
-caption (`PLAN.md` C3b), (3) **A5 context & memory** (episodic/semantic/
-procedural, folder `harness/context/`; rencana di `PLAN.md` A5). C4 dan
+Berikutnya (27 Nov): (1) satu run live berbayar (`make test-live`: C3 +
+C3b), (2) **deploy demo** ke Fly.io oleh Nigka (`docs/deploy.md`: `fly
+launch`, `fly secrets set ANTHROPIC_API_KEY`, `fly deploy --ha=false`), lalu
+isi link di README, (3) **A5 context & memory** (`product_facts` C3b = memori
+semantik pertama; rencana di `PLAN.md` A5). C4 dan
 buyer agent (Track B) di sesi lain. Validasi judge ditunda ke akhir (keputusan Nigka 18 Nov).
 
 ## 1. Yang selesai di sesi 3

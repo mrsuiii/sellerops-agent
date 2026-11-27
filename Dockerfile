@@ -1,8 +1,9 @@
 # Two images from one Dockerfile, built with --target:
 #
-#   store  Kala Studio demo store API + static frontend (production). No LLM keys.
+#   store  Kala Studio store + seller page + caption approval agent (production, Fly.io).
 #          docker build --target store -t sellerops-store .
-#          docker run --rm -p 8000:8000 sellerops-store
+#          docker run --rm -p 8000:8000 -e SELLEROPS_APPROVAL_FAKE=1 sellerops-store   # free fake model
+#          docker run --rm -p 8000:8000 -e ANTHROPIC_API_KEY sellerops-store        # real agent
 #
 #   eval   Seller agent evaluation (Claude API + optional NVIDIA judge). Secrets come
 #          only from --env-file .env.eval at run time; results go to a mounted volume.
@@ -10,10 +11,11 @@
 #          docker run --rm --env-file .env.eval -v "$PWD/results/evaluation:/app/results/evaluation" \
 #            sellerops-eval --user scripted --k 1
 #
-# Isolation: each image installs only its own extra ([store] vs [eval]), no .env is
-# copied into either (.dockerignore), and settings never find a .env inside the image
-# (SELLEROPS_PROJECT_ROOT=/app has none). The store image cannot call an LLM; the eval
-# image does not ship the web frontend or the store server.
+# Isolation: each image installs only its own extras ([store,agent] vs [eval]), no .env
+# is copied into either (.dockerignore), and settings never find a .env inside the image
+# (SELLEROPS_PROJECT_ROOT=/app has none). API keys come only from the runtime
+# environment (fly secrets, --env-file). The eval image does not ship the web frontend
+# or the store server.
 
 # ---------------------------------------------------------------- eval
 FROM python:3.12-slim AS eval
@@ -54,24 +56,30 @@ CMD ["--user", "scripted", "--k", "1", "--tag", "smoke"]
 # ---------------------------------------------------------------- store (default target)
 FROM python:3.12-slim AS store
 
+COPY --from=ghcr.io/astral-sh/uv:0.11.18 /uv /bin/uv
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH=/opt/venv/bin:$PATH \
     SELLEROPS_PROJECT_ROOT=/app \
     SELLEROPS_LOG_FORMAT=json
 
 WORKDIR /app
 
-# Install the package (non-editable); runtime assets are located via
-# SELLEROPS_PROJECT_ROOT, not via the source tree.
-COPY pyproject.toml README.md ./
+# [store] serves the shop; [agent] adds the approval graph (LangGraph, Claude, Pillow
+# for product photos). Pinned by uv.lock; --frozen fails if the lock is stale.
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --no-install-project --extra store --extra agent
 COPY src ./src
-RUN pip install ".[store]" && rm -rf src
+RUN uv sync --frozen --no-editable --extra store --extra agent && rm -rf src
 
 # Runtime assets under SELLEROPS_PROJECT_ROOT. data/seller_sim seeds the seller
-# database (var/seller.sqlite) on first start; mount a volume on /app/var to keep
-# captions, proposals and the audit log across container restarts.
+# database (var/seller.sqlite) on first start. var/ also holds the approval
+# checkpoints and the prepared product photos: mount a volume on /app/var to keep
+# them across restarts (the public demo does not, so it starts fresh after idling).
 COPY data/store ./data/store
 COPY data/seller_sim ./data/seller_sim
 COPY web ./web

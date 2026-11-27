@@ -378,6 +378,7 @@ async function run(pid, call, label, doneText) {
   } finally {
     state.busy = false;
     renderQueue();
+    renderBudget();
   }
 }
 
@@ -403,7 +404,7 @@ async function submitRequest(event) {
     location.hash = `#/${next}`;
     renderQueue();
   } catch (error) { toast(error.message); }
-  finally { button.disabled = false; event.target.querySelector(".working")?.remove(); }
+  finally { button.disabled = false; event.target.querySelector(".working")?.remove(); renderBudget(); }
 }
 
 async function submitNew(event) {
@@ -433,6 +434,19 @@ function toast(text) {
   toastTimer = setTimeout(() => { el.hidden = true; }, 3200);
 }
 
+// ---------- demo budget ----------
+async function renderBudget() {   // public demo only: how many agent steps this visitor has left
+  const el = $("#demo-banner");
+  try {
+    const budget = await api("/api/seller/llm-budget");
+    if (!budget.enabled) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = `<b>Demo publik.</b> Agent memakai Claude sungguhan: sisa <b>${budget.remaining_hour}/${budget.per_client_hour}</b>
+      langkah agent untukmu jam ini (tolak, jawab, atau minta caption). Setujui dan batalkan gratis.
+      Data kembali ke awal saat server istirahat.`;
+  } catch { el.hidden = true; }
+}
+
 // ---------- init ----------
 async function loadProducts() {   // names as the shop shows them now (approved captions included)
   try {
@@ -448,6 +462,7 @@ async function loadProducts() {   // names as the shop shows them now (approved 
 
 async function init() {
   initUser();
+  renderBudget();
   await loadProducts();
   $("#status-chips").addEventListener("click", (event) => {
     const chip = event.target.closest("[data-status]");
